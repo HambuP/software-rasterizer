@@ -28,17 +28,21 @@ int main(int argc, char* argv[]) { // aquí el argc(numero de argumentos) y el c
 
     Mesh cubo_minecraft;
     Mesh carrito;
+    Mesh skull;
 
     cubo_minecraft.load_obj("obj/cubo_mine/sin_nombre.obj"); //cargamos el cubo de minecraft
     carrito.load_obj("obj/Jeep_Renegade_2016_obj/Jeep_Renegade_2016.obj"); //cargamos el carrito
+    skull.load_obj("obj/skull/12140_Skull_v3_L2.obj");
 
     std::vector<Mesh> meshes; //esto es para el caso de que queramos renderizar varios meshes, por ahora solo tenemos uno, pero asi se veria el codigo
-    meshes.push_back(carrito);
+    //meshes.push_back(carrito);
     //meshes.push_back(cubo_minecraft);
+    meshes.push_back(skull);
 
-    meshes[0].transforms.translation.z = 5;
-    meshes[0].transforms.scale = 2;
-    meshes[0].transforms.translation.y  = -2;
+    meshes[0].transforms.translation.z = 14;
+    meshes[0].transforms.scale = 0.5;
+    meshes[0].transforms.translation.y  = -5;
+    meshes[0].transforms.rotation.x = -1.5;
     //meshes[1].transforms.translation.z = 5;
 
     bool running = true;

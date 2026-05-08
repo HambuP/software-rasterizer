@@ -94,7 +94,7 @@ public:
 
             light_dir = light_dir.normalize() ; //normalizamos la direccion de la luz para que tenga longitud 1, esto es importante para el calculo de la iluminacion
 
-            const float Ia   = 0.1f;  // ambiental muy bajo — solo para que las sombras no sean negras
+            const float Ia   = 0.01f;  // ambiental muy bajo — solo para que las sombras no sean negras
             const float Iluz = 1.0f;  // luz a full
 
             const std::vector<Col> &colores = *tri.texture;
@@ -165,8 +165,15 @@ public:
                         Vec3 reflejo = (normal * (2 * (normal * light_dir)) - light_dir).normalize(); //calculamos el vector de reflejo usando la formula de reflexion, y lo normalizamos
                         Vec3 dir_cam = (eye - real_p).normalize(); //calculamos el vector que va del punto al ojo, y lo normalizamos
 
+                        Vec3 inten_spec = {0,0,0}; //lo inicializamos a cero para despues mirar si el triangulo mira a la luz o no
+
+                        if (normal * light_dir > 0) {
+                            //si el triangulo mira a la luz, calculamos la intensidad especular, si no, se queda en cero, esto es para evitar que las partes que no miran a la luz tengan reflejo especular, lo cual no tiene sentido
+                            inten_spec = ks * Iluz * powf(std::max(reflejo * dir_cam, 0.0f), shininess); //intensidad especular, es la constante de specular multiplicada por la intensidad de la luz, multiplicada por el coseno del angulo entre el vector de reflejo y el vector que va al ojo, elevado a la potencia de shininess
+                        }
+
                         Vec3 inten_amb = ka * Ia; //intensidad ambiental, es la constante de ambient multiplicada por la intensidad de la luz ambiental
-                        Vec3 inten_spec = ks * Iluz * powf(std::max(reflejo * dir_cam, 0.0f), shininess); //intensidad especular, es la constante de specular multiplicada por la intensidad de la luz, multiplicada por el coseno del angulo entre el vector de reflejo y el vector que va al ojo, elevado a la potencia de shininess
+                        //aquí hay una cosita distinta, pues ka normalmente es la constante, pero es muy inconsistente que a veces es mejor simplemente usar difuse
 
                         if (depth < zbuffer[j * WIDTH + i]) {
                             zbuffer[j * WIDTH + i] = depth;
