@@ -6,6 +6,11 @@
 #include "sstream"
 #include <filesystem>
 
+enum class ShadingMode {
+    PHONG,
+    TOON
+};
+
 struct Face {
 
     std::vector<int> v_indices; // indices de los vertices que forman la cara
@@ -27,6 +32,9 @@ struct Transform {
 class Mesh {
 
 public:
+
+    ShadingMode shading_mode = ShadingMode::TOON;
+
     std::vector<Vec3> vertices;
     std::vector<Vec3> normals;
     std::vector<Vec2> uvs;

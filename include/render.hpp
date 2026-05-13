@@ -24,6 +24,7 @@ struct Triangulo {
     uint32_t tex_width,tex_height; //ancho y altura de la textura
     float shininess; //constante de shininess del material
     Vec3 ks,ka,kd; //constantes de specular, ambient y diffuse del material
+    ShadingMode shading_mode; //modo de sombreado del material
 
 };
 
@@ -67,6 +68,8 @@ public:
         //uint32_t &tex_width, const uint32_t &tex_height, const int &miny_t, const int &maxy_t
 
         for (auto& tri : triangulos) {
+
+            ShadingMode shading_mode = tri.shading_mode;
 
             Vec3 pA = tri.p1;
             Vec3 pB = tri.p2;
@@ -188,9 +191,41 @@ public:
 
                             Vec3 color_final = inten_amb + inten_dif + inten_spec; //calculamos el color final sumando las intensidades ambiental, difusa y especular
 
+                            //aquí definimos si hay toon shading y aplicamos eso
+                            if (shading_mode == ShadingMode::TOON) {
+
+                                float diff_factor = std::max(normal * light_dir, 0.0f); //el dot de la normal con la direccion de la luz, con esto vamos a hacer el clamp para el toon shading
+                                float view_factor = dir_cam*normal; //el dot de la direccion del punto con la normal del punto, si el dot es casi cero entonces es borde del objeto, esto es para el borde
+                                float spec_factor = std::max(reflejo * dir_cam, 0.0f); //el dot del vector de reflejo con la direccion del punto, esto es para el brillo
+
+                                //outline
+                                if (view_factor < 0.2f) {//si el dot de la direccion del punto con la normal es menor a 0.3, entonces es borde negro
+                                    color_final = {0,0,0};
+                                }
+
+                                //specular sin difuminado
+                                else if (spec_factor > 0.9f){//si el dot del vector de reflejo con la direccion del punto es mayor a 0.8, entonces es un brillo blanco
+                                    color_final = {1,1,1};
+                                }
+
+                                //diffuse cuantizado
+                                else {
+
+                                    float toon;
+                                    if (diff_factor > 0.75f) toon = 1.0f;
+                                    else if (diff_factor > 0.5f) toon = 0.75f;
+                                    else if (diff_factor > 0.25f) toon = 0.5f;
+                                    else toon = 0.25f;
+
+                                    color_final = kd * toon *Iluz; //finalmente definimos el color, aquí es usando kd porque no hay textura
+
+                                }
+                            }
+
                             Uint32 colorin = (255 << 24) | (static_cast<int>(std::min(color_final.x * 255.0f, 255.0f)) << 16) | (static_cast<int>(std::min(color_final.y * 255.0f, 255.0f)) << 8) | static_cast<int>(std::min(color_final.z * 255.0f, 255.0f)); //convertimos el color final a formato ARGB, asegurándonos de que cada componente esté en el rango [0, 255]
 
                             framebuffer[j * WIDTH + i] = colorin; //esto es para pintar el pixel, el framebuffer es un array de pixeles, y cada pixel es un Uint32, que es un entero de 32 bits, y cada bit representa un canal de color (RGBA)
+
                         } //si no hay textura, o la textura tiene ancho o alto 0, no pintamos nada, esto es para evitar errores de división por cero o acceso a memoria inválida
 
                         else {
@@ -211,6 +246,37 @@ public:
                             Vec3 inten_dif = coloro * Iluz * std::max(normal * light_dir, 0.0f); //intensidad difusa, es el color de la textura multiplicada por la intensidad de la luz, multiplicada por el coseno del angulo entre la normal y la direccion de la luz
 
                             Vec3 color_final = inten_amb + inten_dif + inten_spec; //calculamos el color final sumando las intensidades ambiental, difusa y especular
+
+                            //aquí definimos si hay toon shading y aplicamos eso
+                            if (shading_mode == ShadingMode::TOON) {
+
+                                float diff_factor = std::max(normal * light_dir, 0.0f); //el dot de la normal con la direccion de la luz, con esto vamos a hacer el clamp para el toon shading
+                                float view_factor = dir_cam*normal; //el dot de la direccion del punto con la normal del punto, si el dot es casi cero entonces es borde del objeto, esto es para el borde
+                                float spec_factor = std::max(reflejo * dir_cam, 0.0f); //el dot del vector de reflejo con la direccion del punto, esto es para el brillo
+
+                                //outline
+                                if (view_factor < 0.3f) {//si el dot de la direccion del punto con la normal es menor a 0.3, entonces es borde negro
+                                    color_final = {0,0,0};
+                                }
+
+                                //specular sin difuminado
+                                else if (spec_factor > 0.8f){//si el dot del vector de reflejo con la direccion del punto es mayor a 0.8, entonces es un brillo blanco
+                                    color_final = {1,1,1};
+                                }
+
+                                //diffuse cuantizado
+                                else {
+
+                                    float toon;
+                                    if (diff_factor > 0.75f) toon = 1.0f;
+                                    else if (diff_factor > 0.5f) toon = 0.75f;
+                                    else if (diff_factor > 0.25f) toon = 0.5f;
+                                    else toon = 0.25f;
+
+                                    color_final = coloro * toon *Iluz;
+
+                                }
+                            }
 
                             const Uint32 colorin = (255 << 24) | (static_cast<int>(std::min(color_final.x * 255.0f, 255.0f)) << 16) | (static_cast<int>(std::min(color_final.y * 255.0f, 255.0f)) << 8) | static_cast<int>(std::min(color_final.z * 255.0f, 255.0f)); //esto es bit manipulation Uint tiene 32 bits, 8 para A,R,G,B, lo que hacemos es mandar 255 con << que es un shift left, osea, esos 8 bits,
                             //se van a mover 24 posiciones a la izquierda, osea, van a quedar en la parte de A, luego r se mueve 16 posiciones, g se mueve 8 posiciones
@@ -239,6 +305,9 @@ public:
         const Vec3 center = {0,0,0}; //a donde esta viendo la camara
 
         for (const auto& mesh : meshes) { //esto es para el caso de que queramos renderizar varios meshes, por ahora solo tenemos uno, pero asi se veria el codigo
+
+            ShadingMode shading_mode = mesh.shading_mode;
+
             Vec3 move = mesh.transforms.translation; //obtenemos la traslacion del mesh
             const float rotx = mesh.transforms.rotation.x; //obtenemos la rotacion en x del mesh
             const float roty = mesh.transforms.rotation.y; //obtenemos la rotacion en y del mesh
@@ -321,7 +390,7 @@ public:
                     triangulos.push_back({p1,p2,p3,Vec3{ver1real.x,ver1real.y,ver1real.z},Vec3{ver2real.x,ver2real.y,ver2real.z},Vec3{ver3real.x,ver3real.y,ver3real.z},uv1,uv2,uv3,Vec3{nor1real.x,nor1real.y,nor1real.z},Vec3{nor2real.x,nor2real.y,nor2real.z},Vec3{nor3real.x,nor3real.y,nor3real.z},mat ? &mat->texture : &empty_texture,
                         mat ? mat->width : 0,
                         mat ? mat->height : 0,
-                        mat->shininess,mat->specular, mat->ambient, mat->diffuse}); //mandamos el triangulo a la lista de triangulos epicamente
+                        mat->shininess,mat->specular, mat->ambient, mat->diffuse, shading_mode}); //mandamos el triangulo a la lista de triangulos epicamente
 
                 }
 
