@@ -9,6 +9,11 @@
 
 #include "material.hpp"
 
+struct Camera {
+    Vec3 position = {0, 0, 3};
+    float yaw   = 0.0f;
+    float pitch = 0.0f;
+};
 
 struct tuple {
     int x,y;
@@ -41,6 +46,7 @@ public:
 
     std::vector<tuple> threads;
 
+    Camera cam;
 
     Render(SDL_Renderer* renderer, const int width, const int height) : renderer(renderer), WIDTH(width), HEIGHT(height),
                                                 framebuffer(width * height, 0), zbuffer(width * height, HUGE_VALF) {
@@ -92,7 +98,7 @@ public:
             Vec3 const ka = tri.ka;
             Vec3 const kd = tri.kd;
 
-            Vec3 eye = {0,0,3}; //posicion de la camara
+            Vec3 eye = cam.position; //posicion de la camara
             Vec3 light_dir = {-1,-1,-1}; //direccion de la luz, en este caso, una luz direccional que viene de esa direccion
 
             light_dir = light_dir.normalize() ; //normalizamos la direccion de la luz para que tenga longitud 1, esto es importante para el calculo de la iluminacion
@@ -204,7 +210,7 @@ public:
                                 }
 
                                 //specular sin difuminado
-                                else if (spec_factor > 0.9f){//si el dot del vector de reflejo con la direccion del punto es mayor a 0.8, entonces es un brillo blanco
+                                else if (spec_factor > 0.9f  && normal * light_dir > 0.0f){//si el dot del vector de reflejo con la direccion del punto es mayor a 0.8, entonces es un brillo blanco
                                     color_final = {1,1,1};
                                 }
 
@@ -260,7 +266,7 @@ public:
                                 }
 
                                 //specular sin difuminado
-                                else if (spec_factor > 0.8f){//si el dot del vector de reflejo con la direccion del punto es mayor a 0.8, entonces es un brillo blanco
+                                else if (spec_factor > 0.8f  && normal * light_dir > 0.0f){//si el dot del vector de reflejo con la direccion del punto es mayor a 0.8, entonces es un brillo blanco
                                     color_final = {1,1,1};
                                 }
 
@@ -301,8 +307,14 @@ public:
         std::fill(framebuffer.begin(), framebuffer.end(), 0);//reiniciamos el framebuffer cada frame para no tener los pixeles del frame anterior, esto es importante para que no se queden los pixeles pintados de un frame a otro
         std::fill(zbuffer.begin(), zbuffer.end(), HUGE_VALF);//reiniciamos tambien el zbuffer por la misma razon
 
-        const Vec3 eye = {0,0,3}; //posicion de la camara
-        const Vec3 center = {0,0,0}; //a donde esta viendo la camara
+        Vec3 front = Vec3{
+            sinf(cam.yaw) * cosf(cam.pitch),
+            sinf(cam.pitch),
+            cosf(cam.yaw) * cosf(cam.pitch)
+        }.normalize(); //calculamos el vector front de la camara usando las formulas de rotacion, aunque no creo que la normalizacion sea necesaria
+
+        const Vec3 eye = cam.position; //posicion de la camara
+        const Vec3 center = cam.position + front; //a donde esta viendo la camara
 
         for (const auto& mesh : meshes) { //esto es para el caso de que queramos renderizar varios meshes, por ahora solo tenemos uno, pero asi se veria el codigo
 
@@ -379,7 +391,7 @@ public:
 
                     //backface culling
                     float area = edge_function(real2-real1, real3-real1);//edge function, si un vector esta a la derecha del otro, te indica el winding
-                    if (area <= 0) continue;
+                    if (area >= 0) continue;
 
                     Vec3 p1 = {real1.x, real1.y, ver1_clip.w}; //y pues ya tenemos los vertices listos para ser rasterizados, con su profundidad en z
                     Vec3 p2 = {real2.x, real2.y, ver2_clip.w}; //y pues mando el w que teníamos antes, porque es el que se usa para interpolar por profundidad

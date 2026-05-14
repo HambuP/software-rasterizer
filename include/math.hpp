@@ -129,15 +129,22 @@ inline Mat4 lookAt_matrix(Vec3 const &eye, Vec3 const &center) {
     const Vec3 temp_up = {0, 1, 0}; // Vector de "arriba" temporal, se puede ajustar según la orientación deseada
 
     Vec3 forward = (center - eye).normalize(); //a donde ve menos en donde esta para calcular forward, y claro, para hacer todos los calculos toca normalizarlos
-    Vec3 right = forward.cross(temp_up.normalize()); // el cross product te da un vector perpendicular a ambos, perfect para esto
+    Vec3 right = forward.cross(temp_up.normalize()).normalize(); // el cross product te da un vector perpendicular a ambos, perfect para esto
     Vec3 up = right.cross(forward); // y calculamos up real
 
-    return {   // esta es la inversa, o traspuesta de la matriz de view matrix, que hace todos los cambios a la camara, nosotros lo que queremos es que el mundo hago exactamente lo contrario
-        right.x, up.x, -forward.x, 0, // porque usamos el dot en la traslación? justamente, porque aquí el orden que estamos usando es traslacion y despues rotacion, pero para la inversa, toca hacer
-        right.y, up.y, -forward.y, 0, // rotacion y traslacion para no embarrarla, y el problema, es que si intentamos hacer la traslacion despues de la rotacion con las simple coords de cam
-        right.z, up.z, -forward.z, 0, // nuestro cubo sale en donde no tiene que ser, estos dot products solucionan eso justamente
-        -(right * eye), -(up * eye), (forward * eye), 1 //forward es negativo por convecion de poner a los objetos en -z
+    return {// esta es la inversa, o traspuesta de la matriz de view matrix, que hace todos los cambios a la camara, nosotros lo que queremos es que el mundo hago exactamente lo contrario
+        right.x,   right.y,   right.z,   -(right * eye),
+        up.x,      up.y,      up.z,      -(up * eye),
+        forward.x, forward.y, forward.z, -(forward * eye),
+        0,         0,         0,         1
     };
+
+    // return {   // esta es la inversa, o traspuesta de la matriz de view matrix, que hace todos los cambios a la camara, nosotros lo que queremos es que el mundo hago exactamente lo contrario
+    //     right.x, up.x, -forward.x, 0, // porque usamos el dot en la traslación? justamente, porque aquí el orden que estamos usando es traslacion y despues rotacion, pero para la inversa, toca hacer
+    //     right.y, up.y, -forward.y, 0, // rotacion y traslacion para no embarrarla, y el problema, es que si intentamos hacer la traslacion despues de la rotacion con las simple coords de cam
+    //     right.z, up.z, -forward.z, 0, // nuestro cubo sale en donde no tiene que ser, estos dot products solucionan eso justamente
+    //     -(right * eye), -(up * eye), (forward * eye), 1 //forward es negativo por convecion de poner a los objetos en -z
+    // };
 }
 
 inline Mat4 projection_matrix(float const fov, float const aspect, float const near, float const far) {

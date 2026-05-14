@@ -59,10 +59,40 @@ int main(int argc, char* argv[]) { // aquí el argc(numero de argumentos) y el c
     bool running = true;
     SDL_Event event;
 
+    SDL_SetWindowRelativeMouseMode(window, true);//esconde el mouse y para que de solo deltas al moverse, el que necesitamos
+
+    const float sensitivity = 0.001; //sentibilidad de la camara
+    const float speed = 1; //velocidad de la camara
+
     while (running) {
         while (SDL_PollEvent(&event)) { //el sdl_pollevent saca un evento de la cola de eventos de SDL y lo pone en la variable event
             if (event.type == SDL_EVENT_QUIT) running = false; //si cierras la ventana, running se vuelve falso
+
+            if (event.type == SDL_EVENT_MOUSE_MOTION) { //el coso para identificar si se mueve el mouse
+                renderizador.cam.yaw   -= event.motion.xrel * sensitivity;
+                renderizador.cam.pitch -= event.motion.yrel * sensitivity; // negativo porque Y invertida
+                renderizador.cam.pitch  = std::clamp(renderizador.cam.pitch, -1.5f, 1.5f); // evita voltear
+            }
+
         }
+
+        const bool* keys = SDL_GetKeyboardState(NULL);
+
+        Vec3 front = Vec3{
+            sinf(renderizador.cam.yaw) * cosf(renderizador.cam.pitch),
+            sinf(renderizador.cam.pitch),
+            cosf(renderizador.cam.yaw) * cosf(renderizador.cam.pitch)
+        }.normalize(); //calculamos el vector front de la camara usando las formulas de rotacion};
+
+        Vec3 right = front.cross(Vec3{0, 1, 0}).normalize(); //calculamos right con el cross product de siempre
+
+        if (keys[SDL_SCANCODE_W]) renderizador.cam.position = renderizador.cam.position + front * speed;
+        if (keys[SDL_SCANCODE_S]) renderizador.cam.position = renderizador.cam.position - front * speed;
+        if (keys[SDL_SCANCODE_A]) renderizador.cam.position = renderizador.cam.position - right * speed;
+        if (keys[SDL_SCANCODE_D]) renderizador.cam.position = renderizador.cam.position + right * speed;
+
+
+
 
         meshes[0].transforms.rotation.y  = cosf(clock() * 0.0001f) * 5.f;
         meshes[1].transforms.rotation.y  = cosf(clock() * 0.0001f) * 5.f;
