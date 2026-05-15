@@ -25,11 +25,11 @@ struct Vec3 {
         return {x - other.x, y - other.y, z - other.z};
     }
 
-    float lenght() const { return sqrtf(x * x + y * y + z * z); }
+    float length() const { return sqrtf(x * x + y * y + z * z); }
     Vec3 operator*(const float &k) const { return {x * k , y * k , z * k}; }
     float operator*(const Vec3& other) const { return x * other.x + y * other.y + z * other.z; }
     Vec3 cross(const Vec3& other) const { return {y * other.z - z * other.y, z * other.x - x * other.z, x * other.y - y * other.x}; }
-    Vec3 normalize() const { float l = lenght(); return {x / l, y / l, z / l}; }
+    Vec3 normalize() const { float l = length(); return {x / l, y / l, z / l}; }
 };
 
 struct Vec4 {
@@ -156,4 +156,13 @@ inline Mat4 projection_matrix(float const fov, float const aspect, float const n
         0,0,1,0
     };
 
+}
+
+inline Mat4 ortho_matrix(float const left, float const right, float const bottom, float const top, float const near, float const far) { //matriz de pryeccion ortografica, mucho más simple que la de proyeccion, para las luces
+    return {
+        2/(right-left),0,0,-(right+left)/(right-left),
+        0,2/(top-bottom),0,-(top+bottom)/(top-bottom),
+        0,0,2/(far-near),-(far+near)/(far-near),
+        0,0,0,1
+    };
 }

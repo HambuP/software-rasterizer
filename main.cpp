@@ -30,31 +30,34 @@ int main(int argc, char* argv[]) { // aquí el argc(numero de argumentos) y el c
     Mesh carrito;
     Mesh skull;
     Mesh skull2;
+    Mesh fondo;
 
     cubo_minecraft.load_obj("obj/cubo_mine/sin_nombre.obj"); //cargamos el cubo de minecraft
     carrito.load_obj("obj/Jeep_Renegade_2016_obj/Jeep_Renegade_2016.obj"); //cargamos el carrito
     skull.load_obj("obj/skull/12140_Skull_v3_L2.obj");
-    skull2.load_obj("obj/skull/12140_Skull_v3_L2.obj");
+    //skull2.load_obj("obj/skull/12140_Skull_v3_L2.obj");
+    fondo.load_obj("obj/fondo/room.obj");
 
     std::vector<Mesh> meshes; //esto es para el caso de que queramos renderizar varios meshes, por ahora solo tenemos uno, pero asi se veria el codigo
     //meshes.push_back(carrito);
     //meshes.push_back(cubo_minecraft);
     meshes.push_back(skull);
-    meshes.push_back(skull2);
+    meshes.push_back(fondo);
+    //meshes.push_back(skull2);
 
     meshes[0].transforms.translation.z = 14;
     meshes[0].transforms.scale = 0.4;
     meshes[0].transforms.translation.y  = -5;
     meshes[0].transforms.translation.x  = -6;
     meshes[0].transforms.rotation.x = -1.5;
-    meshes[0].shading_mode  = ShadingMode::PHONG;
+    meshes[0].shading_mode  = ShadingMode::TOON;
 
-    meshes[1].transforms.translation.z = 14;
-    meshes[1].transforms.scale = 0.4;
-    meshes[1].transforms.translation.y  = -5;
-    meshes[1].transforms.translation.x  = 6;
-    meshes[1].transforms.rotation.x = -1.5;
-    meshes[1].shading_mode  = ShadingMode::TOON;
+    meshes[1].transforms.translation.z = 12 ;
+     meshes[1].transforms.scale = 3;
+     meshes[1].transforms.translation.y  = -7;
+     meshes[1].transforms.translation.x  = 23;
+    meshes[1].transforms.rotation.y = -1.5;
+    meshes[1].shading_mode  = ShadingMode::PHONG;
 
     bool running = true;
     SDL_Event event;
@@ -62,9 +65,10 @@ int main(int argc, char* argv[]) { // aquí el argc(numero de argumentos) y el c
     SDL_SetWindowRelativeMouseMode(window, true);//esconde el mouse y para que de solo deltas al moverse, el que necesitamos
 
     const float sensitivity = 0.001; //sentibilidad de la camara
-    const float speed = 1; //velocidad de la camara
+    const float speed = 0.5; //velocidad de la camara
 
     while (running) {
+
         while (SDL_PollEvent(&event)) { //el sdl_pollevent saca un evento de la cola de eventos de SDL y lo pone en la variable event
             if (event.type == SDL_EVENT_QUIT) running = false; //si cierras la ventana, running se vuelve falso
 
@@ -95,10 +99,12 @@ int main(int argc, char* argv[]) { // aquí el argc(numero de argumentos) y el c
 
 
         meshes[0].transforms.rotation.y  = cosf(clock() * 0.0001f) * 5.f;
-        meshes[1].transforms.rotation.y  = cosf(clock() * 0.0001f) * 5.f;
+        //meshes[1].transforms.rotation.y  = cosf(clock() * 0.0001f) * 5.f;
         //meshes[1].transforms.rotation.y  = cosf(clock() * 0.0001f+0.5) * 5.f;
 
         SDL_RenderClear(renderer); // esto limpia el renderer, para que no se queden los pixeles del frame anterior
+
+        renderizador.render_shadows(meshes); //renderizamos las sombras, esto va a llenar el shadow map de cada luz con la profundidad de los pixeles que corresponden a los objetos en su posición actual, desde la perspectiva de la luz
 
         renderizador.render_obj(meshes); //renderizamos el cubo, esto va a llenar el framebuffer con los pixeles que corresponden al cubo en su posición actual
 
