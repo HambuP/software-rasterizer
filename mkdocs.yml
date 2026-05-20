@@ -1,0 +1,61 @@
+site_name: 3D Software Rasterizer
+site_description: A software 3D rasterizer built from scratch in C++ using SDL3 — barycentric interpolation, z-buffer, UV texturing, Phong lighting, shadow mapping and multithreading.
+site_author: Santiago Forero
+site_url: https://hambup.me/rasterizer
+
+theme:
+  name: material
+  favicon: assets/img/favicon.svg
+  logo: assets/img/favicon.svg
+  palette:
+    scheme: slate
+    primary: custom
+    accent: custom
+  font:
+    text: DM Sans
+    code: JetBrains Mono
+  features:
+    - navigation.tabs
+    - navigation.top
+    - navigation.sections
+    - content.code.copy
+    - toc.follow
+
+nav:
+  - Home: index.md
+  - Pipeline:
+      - "01 · Framebuffer":         pipeline/01_framebuffer.md
+      - "02 · Barycentric Coords":  pipeline/02_barycentric.md
+      - "03 · Z-Buffer":            pipeline/03_zbuffer.md
+      - "04 · Matrices & MVP":      pipeline/04_matrices.md
+      - "05 · OBJ Parser":          pipeline/05_parser.md
+      - "06 · UV Texturing":        pipeline/06_uv.md
+      - "07 · Culling & Threads":   pipeline/07_culling.md
+      - "08 · Camera":              pipeline/08_camera.md
+      - "09 · Phong & Toon":        pipeline/09_lighting.md
+      - "10 · Shadow Mapping":      pipeline/10_shadows.md
+  - Extras:
+      - "Bugs — Hall of Fame":      extras/bugs.md
+      - "Process & Research":       extras/process.md
+      - "Math Primer":              extras/math_primer.md
+      - "References":               extras/references.md
+
+repo_url: https://github.com/HambuP/3D-Rasterizer-in-Cpp-using-SDL3
+repo_name: HambuP/3D-Rasterizer-in-Cpp-using-SDL3
+
+extra_css:
+  - stylesheets/extra.css
+
+markdown_extensions:
+  - attr_list
+  - md_in_html
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.inlinehilite
+  - pymdownx.arithmatex:
+      generic: true
+
+extra_javascript:
+  - javascripts/mathjax.js
+  - https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js

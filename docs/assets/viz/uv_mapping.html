@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UV Mapping</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 100%; height: 100%; background: #0d0c0a; overflow: hidden; font-family: monospace; }
+
+#wrap { width: 100%; height: 100%; position: relative; }
+canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+#hint {
+  position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%);
+  color: #4a3a2a; font-size: 12px; pointer-events: none; white-space: nowrap;
+}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="canvas"></canvas>
+  <div id="hint">drag any UV handle on the texture</div>
+</div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+/* ── 8×8 grass-block-side texture (hand-designed) ───── */
+const texSize = 8;
+const texCanvas = document.createElement('canvas');
+texCanvas.width = texSize;
+texCanvas.height = texSize;
+const texCtx = texCanvas.getContext('2d');
+let texData = null;
+
+function generateTexture() {
+  // Palette inspired by classic Minecraft grass block
+  const palette = [
+    [145, 189,  89],  // 0  grass light
+    [109, 163,  77],  // 1  grass mid
+    [ 79, 125,  58],  // 2  grass dark   (depth accent)
+    [134,  96,  67],  // 3  dirt mid     (base)
+    [108,  79,  51],  // 4  dirt dark
+    [161, 122,  85],  // 5  dirt light   (highlight)
+    [ 82,  61,  41]   // 6  dirt very dark
+  ];
+
+  // Each cell hand-placed for a clean, recognisable read
+  const map = [
+    [0, 0, 1, 0, 0, 1, 0, 0],   // pure grass
+    [0, 1, 0, 0, 1, 0, 1, 0],   // pure grass
+    [1, 0, 2, 0, 0, 1, 0, 1],   // grass with one dark accent
+    [0, 3, 4, 1, 3, 0, 4, 3],   // ── transition: 3 grass tufts dripping into dirt ──
+    [3, 3, 4, 3, 3, 5, 3, 4],   // dirt
+    [4, 3, 3, 3, 4, 3, 3, 3],   // dirt
+    [3, 5, 3, 4, 3, 3, 4, 6],   // dirt with very-dark spot
+    [3, 3, 4, 3, 3, 5, 3, 3]    // dirt
+  ];
+
+  const imgData = texCtx.createImageData(texSize, texSize);
+  const data = imgData.data;
+  for (let y = 0; y < texSize; y++) {
+    for (let x = 0; x < texSize; x++) {
+      const idx = (y * texSize + x) * 4;
+      const c = palette[map[y][x]];
+      data[idx]     = c[0];
+      data[idx + 1] = c[1];
+      data[idx + 2] = c[2];
+      data[idx + 3] = 255;
+    }
+  }
+  texCtx.putImageData(imgData, 0, 0);
+  texData = data;
+}
+generateTexture();
+
+function sampleTexture(u, v) {
+  const x = Math.max(0, Math.min(texSize - 1, Math.floor(u * texSize)));
+  const y = Math.max(0, Math.min(texSize - 1, Math.floor(v * texSize)));
+  const idx = (y * texSize + x) * 4;
+  return [texData[idx], texData[idx + 1], texData[idx + 2]];
+}
+
+/* ── State: 3 UV vertices ───────────────────────────── */
+const vertices = [
+  { u: 0.15, v: 0.20, color: '#e05050', label: 'A' },
+  { u: 0.85, v: 0.30, color: '#50d050', label: 'B' },
+  { u: 0.45, v: 0.85, color: '#5080e0', label: 'C' }
+];
+
+/* ── Layout ─────────────────────────────────────────── */
+let layout = {};
+function computeLayout() {
+  const w = canvas.clientWidth;
+  const h = canvas.clientHeight;
+  const halfW = w / 2;
+  const pad = 50;
+  const sideSize = Math.min(halfW - pad * 2, h - 90);
+
+  const texLeft = halfW / 2 - sideSize / 2;
+  const texTop  = h / 2 - sideSize / 2;
+
+  const destCx = halfW + halfW / 2;
+  const destCy = h / 2;
+  const destR  = sideSize / 2;
+  const destA = [destCx - destR * 0.85, destCy - destR * 0.65];
+  const destB = [destCx + destR * 0.80, destCy - destR * 0.40];
+  const destC = [destCx - destR * 0.20, destCy + destR * 0.85];
+
+  layout = { w, h, dpr: ctx.getTransform().a, texLeft, texTop, texDispSize: sideSize, destA, destB, destC };
+}
+
+function uvToCanvas(u, v) {
+  return [layout.texLeft + u * layout.texDispSize, layout.texTop + v * layout.texDispSize];
+}
+function canvasToUv(cx, cy) {
+  return [(cx - layout.texLeft) / layout.texDispSize, (cy - layout.texTop) / layout.texDispSize];
+}
+
+/* ── Drawing ───────────────────────────────────────── */
+function draw() {
+  computeLayout();
+  ctx.clearRect(0, 0, layout.w, layout.h);
+  drawTexture();
+  drawDestination();
+}
+
+function drawTexture() {
+  const { texLeft, texTop, texDispSize } = layout;
+
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(texCanvas, texLeft, texTop, texDispSize, texDispSize);
+
+  ctx.strokeStyle = '#3a3020';
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(texLeft - 0.5, texTop - 0.5, texDispSize + 1, texDispSize + 1);
+
+  // Corner UV labels
+  ctx.fillStyle = '#7a6a55';
+  ctx.font = '11px monospace';
+  ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
+  ctx.fillText('(0, 0)', texLeft, texTop - 4);
+  ctx.textAlign = 'right';
+  ctx.fillText('(1, 0)', texLeft + texDispSize, texTop - 4);
+  ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+  ctx.fillText('(0, 1)', texLeft, texTop + texDispSize + 4);
+  ctx.textAlign = 'right';
+  ctx.fillText('(1, 1)', texLeft + texDispSize, texTop + texDispSize + 4);
+
+  // UV triangle outline (dashed)
+  const pts = vertices.map(v => uvToCanvas(v.u, v.v));
+  ctx.setLineDash([5, 5]);
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(pts[0][0], pts[0][1]);
+  ctx.lineTo(pts[1][0], pts[1][1]);
+  ctx.lineTo(pts[2][0], pts[2][1]);
+  ctx.closePath();
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Handles
+  drawVertices(pts);
+}
+
+function drawDestination() {
+  const { destA, destB, destC } = layout;
+
+  rasterizeTextured(destA, destB, destC);
+
+  ctx.strokeStyle = '#3a3020';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(destA[0], destA[1]);
+  ctx.lineTo(destB[0], destB[1]);
+  ctx.lineTo(destC[0], destC[1]);
+  ctx.closePath();
+  ctx.stroke();
+
+  drawVertices([destA, destB, destC]);
+}
+
+function drawVertices(pts) {
+  vertices.forEach((v, i) => {
+    const [px, py] = pts[i];
+    ctx.fillStyle = v.color;
+    ctx.beginPath();
+    ctx.arc(px, py, 10, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#0d0c0a';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.fillStyle = '#0d0c0a';
+    ctx.font = 'bold 11px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(v.label, px, py + 0.5);
+  });
+}
+
+/* ── Textured rasterization ─────────────────────────── */
+function edgeFn(ax, ay, bx, by, px, py) {
+  return (px - ax) * (by - ay) - (py - ay) * (bx - ax);
+}
+
+function rasterizeTextured(a, b, c) {
+  const dpr = layout.dpr;
+
+  const minXLog = Math.max(0,           Math.floor(Math.min(a[0], b[0], c[0])));
+  const maxXLog = Math.min(layout.w - 1, Math.ceil (Math.max(a[0], b[0], c[0])));
+  const minYLog = Math.max(0,           Math.floor(Math.min(a[1], b[1], c[1])));
+  const maxYLog = Math.min(layout.h - 1, Math.ceil (Math.max(a[1], b[1], c[1])));
+  if (minXLog > maxXLog || minYLog > maxYLog) return;
+
+  const area = edgeFn(a[0], a[1], b[0], b[1], c[0], c[1]);
+  if (area === 0) return;
+
+  const minX = Math.round(minXLog * dpr);
+  const minY = Math.round(minYLog * dpr);
+  const bw   = Math.round((maxXLog - minXLog + 1) * dpr);
+  const bh   = Math.round((maxYLog - minYLog + 1) * dpr);
+
+  const imgData = ctx.createImageData(bw, bh);
+  const data = imgData.data;
+
+  const ua = vertices[0].u, va = vertices[0].v;
+  const ub = vertices[1].u, vb = vertices[1].v;
+  const uc = vertices[2].u, vc = vertices[2].v;
+
+  for (let py = 0; py < bh; py++) {
+    for (let px = 0; px < bw; px++) {
+      const xLog = (minX + px + 0.5) / dpr;
+      const yLog = (minY + py + 0.5) / dpr;
+
+      const w0 = edgeFn(b[0], b[1], c[0], c[1], xLog, yLog);
+      const w1 = edgeFn(c[0], c[1], a[0], a[1], xLog, yLog);
+      const w2 = edgeFn(a[0], a[1], b[0], b[1], xLog, yLog);
+
+      const inside = area > 0
+        ? (w0 >= 0 && w1 >= 0 && w2 >= 0)
+        : (w0 <= 0 && w1 <= 0 && w2 <= 0);
+      if (!inside) continue;
+
+      const b0 = w0 / area, b1 = w1 / area, b2 = w2 / area;
+      const u = b0 * ua + b1 * ub + b2 * uc;
+      const v = b0 * va + b1 * vb + b2 * vc;
+
+      const [r, g, b_] = sampleTexture(u, v);
+      const idx = (py * bw + px) * 4;
+      data[idx]     = r;
+      data[idx + 1] = g;
+      data[idx + 2] = b_;
+      data[idx + 3] = 255;
+    }
+  }
+  ctx.putImageData(imgData, minX, minY);
+}
+
+/* ── Interaction ───────────────────────────────────── */
+let dragging = -1;
+
+function hitTest(mx, my) {
+  for (let i = 0; i < 3; i++) {
+    const [px, py] = uvToCanvas(vertices[i].u, vertices[i].v);
+    if (Math.hypot(mx - px, my - py) < 16) return i;
+  }
+  return -1;
+}
+
+function getEventXY(e) {
+  const rect = canvas.getBoundingClientRect();
+  if (e.touches && e.touches.length > 0) {
+    return [e.touches[0].clientX - rect.left, e.touches[0].clientY - rect.top];
+  }
+  return [e.clientX - rect.left, e.clientY - rect.top];
+}
+
+function pointerDown(e) {
+  const [mx, my] = getEventXY(e);
+  const idx = hitTest(mx, my);
+  if (idx >= 0) {
+    dragging = idx;
+    canvas.style.cursor = 'grabbing';
+    e.preventDefault();
+  }
+}
+function pointerMove(e) {
+  const [mx, my] = getEventXY(e);
+  if (dragging < 0) {
+    canvas.style.cursor = hitTest(mx, my) >= 0 ? 'grab' : 'default';
+    return;
+  }
+  const [u, v] = canvasToUv(mx, my);
+  vertices[dragging].u = Math.max(0, Math.min(1, u));
+  vertices[dragging].v = Math.max(0, Math.min(1, v));
+  draw();
+  e.preventDefault();
+}
+function pointerUp() {
+  dragging = -1;
+  canvas.style.cursor = 'default';
+}
+
+canvas.addEventListener('mousedown', pointerDown);
+window.addEventListener('mousemove', pointerMove);
+window.addEventListener('mouseup', pointerUp);
+canvas.addEventListener('touchstart', pointerDown, { passive: false });
+canvas.addEventListener('touchmove', pointerMove, { passive: false });
+canvas.addEventListener('touchend', pointerUp);
+canvas.addEventListener('touchcancel', pointerUp);
+
+/* ── Resize ─────────────────────────────────────────── */
+function resize() {
+  const dpr = Math.min(devicePixelRatio || 1, 2);
+  const rect = canvas.getBoundingClientRect();
+  canvas.width  = Math.max(1, Math.floor(rect.width  * dpr));
+  canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  draw();
+}
+window.addEventListener('resize', resize);
+resize();
+</script>
+</body>
+</html>

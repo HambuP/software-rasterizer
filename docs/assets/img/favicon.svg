@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <rect width="32" height="32" rx="5" fill="#12110e"/>
+
+  <!-- Back edges FIRST (drawn below) -->
+  <line x1="16" y1="16" x2="27" y2="10" stroke="#4a4030" stroke-width="1.2" stroke-linecap="round"/>
+  <line x1="16" y1="16" x2="5"  y2="10" stroke="#4a4030" stroke-width="1.2" stroke-linecap="round"/>
+  <line x1="16" y1="16" x2="16" y2="28" stroke="#4a4030" stroke-width="1.2" stroke-linecap="round"/>
+
+  <!-- Front edges ON TOP -->
+  <polygon
+    points="16,4 27,10 27,22 16,28 5,22 5,10"
+    fill="none"
+    stroke="#e8e0d5"
+    stroke-width="1.6"
+    stroke-linejoin="round"
+  />
+  <line x1="16" y1="16" x2="16" y2="4"  stroke="#e8e0d5" stroke-width="1.6" stroke-linecap="round"/>
+  <line x1="16" y1="16" x2="27" y2="22" stroke="#e8e0d5" stroke-width="1.6" stroke-linecap="round"/>
+  <line x1="16" y1="16" x2="5"  y2="22" stroke="#e8e0d5" stroke-width="1.6" stroke-linecap="round"/>
+</svg>

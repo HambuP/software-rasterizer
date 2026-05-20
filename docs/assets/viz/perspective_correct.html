@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Perspective-Correct Interpolation</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 100%; height: 100%; background: #0d0c0a; overflow: hidden; font-family: monospace; }
+
+#wrap { width: 100%; height: 100%; display: flex; flex-direction: column; }
+#scene-area { flex: 1; position: relative; min-height: 0; }
+canvas { display: block; width: 100%; height: 100%; }
+
+#hud {
+  flex-shrink: 0;
+  padding: 14px 30px;
+  display: flex; gap: 12px; align-items: center;
+  border-top: 1px solid #1e1a14;
+  background: #0d0c0a;
+}
+.slider-cell {
+  display: flex; align-items: center; gap: 12px;
+  font-size: 13px; color: #c8bba8;
+  flex: 1; min-width: 0;
+}
+.slider-cell label { font-weight: bold; min-width: 40px; }
+.slider-cell input[type="range"] {
+  flex: 1; accent-color: #c8894a; cursor: pointer; min-width: 0;
+}
+.slider-cell .val {
+  font-variant-numeric: tabular-nums;
+  color: #d4a855;
+  min-width: 50px; text-align: right;
+}
+</style>
+</head>
+<body>
+<div id="wrap">
+
+  <div id="scene-area">
+    <canvas id="canvas"></canvas>
+  </div>
+
+  <div id="hud">
+    <div class="slider-cell">
+      <label>Tilt</label>
+      <input type="range" id="tiltSlider" min="0" max="80" step="1" value="60">
+      <span class="val"><span id="tiltVal">60</span>°</span>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const $ = id => document.getElementById(id);
+
+/* ── 8×8 grass-block-side texture (same as UV mapping) ── */
+const texSize = 8;
+const texCanvas = document.createElement('canvas');
+texCanvas.width = texSize;
+texCanvas.height = texSize;
+const texCtx = texCanvas.getContext('2d');
+let texData = null;
+
+function generateTexture() {
+  const palette = [
+    [145, 189,  89], [109, 163,  77], [ 79, 125,  58],
+    [134,  96,  67], [108,  79,  51], [161, 122,  85], [ 82,  61,  41]
+  ];
+  const map = [
+    [0, 0, 1, 0, 0, 1, 0, 0],
+    [0, 1, 0, 0, 1, 0, 1, 0],
+    [1, 0, 2, 0, 0, 1, 0, 1],
+    [0, 3, 4, 1, 3, 0, 4, 3],
+    [3, 3, 4, 3, 3, 5, 3, 4],
+    [4, 3, 3, 3, 4, 3, 3, 3],
+    [3, 5, 3, 4, 3, 3, 4, 6],
+    [3, 3, 4, 3, 3, 5, 3, 3]
+  ];
+  const imgData = texCtx.createImageData(texSize, texSize);
+  const data = imgData.data;
+  for (let y = 0; y < texSize; y++) {
+    for (let x = 0; x < texSize; x++) {
+      const idx = (y * texSize + x) * 4;
+      const c = palette[map[y][x]];
+      data[idx]     = c[0];
+      data[idx + 1] = c[1];
+      data[idx + 2] = c[2];
+      data[idx + 3] = 255;
+    }
+  }
+  texCtx.putImageData(imgData, 0, 0);
+  texData = data;
+}
+generateTexture();
+
+function sampleTexture(u, v) {
+  const tx = Math.max(0, Math.min(texSize - 1, Math.floor(u * texSize)));
+  const ty = Math.max(0, Math.min(texSize - 1, Math.floor(v * texSize)));
+  const idx = (ty * texSize + tx) * 4;
+  return [texData[idx], texData[idx + 1], texData[idx + 2]];
+}
+
+/* ── State ──────────────────────────────────────────── */
+let tiltDeg = 60;
+
+/* ── Build the tilted quad in camera space ──────────── */
+function buildQuad() {
+  const rad = tiltDeg * Math.PI / 180;
+  const cosT = Math.cos(rad);
+  const sinT = Math.sin(rad);
+  const zCenter = 3.5;
+
+  // Quad rotated around its horizontal centre axis:
+  // top edge comes toward the camera, bottom goes away.
+  return [
+    { x: -1, y:  cosT, z: zCenter - sinT, u: 0, v: 0 },  // TL near
+    { x:  1, y:  cosT, z: zCenter - sinT, u: 1, v: 0 },  // TR near
+    { x:  1, y: -cosT, z: zCenter + sinT, u: 1, v: 1 },  // BR far
+    { x: -1, y: -cosT, z: zCenter + sinT, u: 0, v: 1 }   // BL far
+  ];
+}
+
+/* ── Perspective projection to canvas pixels ────────── */
+function project(v, cx, cy, scale) {
+  const focal = 1.5;
+  return {
+    sx: cx + (focal * v.x / v.z) * scale,
+    sy: cy + (-focal * v.y / v.z) * scale,
+    z:  v.z,
+    u:  v.u,
+    v:  v.v
+  };
+}
+
+/* ── Rasteriser ─────────────────────────────────────── */
+function edgeFn(ax, ay, bx, by, px, py) {
+  return (px - ax) * (by - ay) - (py - ay) * (bx - ax);
+}
+
+function rasterise(v0, v1, v2, mode) {
+  const dpr = ctx.getTransform().a;
+
+  const minXLog = Math.max(0, Math.floor(Math.min(v0.sx, v1.sx, v2.sx)));
+  const maxXLog = Math.min(canvas.clientWidth  - 1, Math.ceil(Math.max(v0.sx, v1.sx, v2.sx)));
+  const minYLog = Math.max(0, Math.floor(Math.min(v0.sy, v1.sy, v2.sy)));
+  const maxYLog = Math.min(canvas.clientHeight - 1, Math.ceil(Math.max(v0.sy, v1.sy, v2.sy)));
+  if (minXLog > maxXLog || minYLog > maxYLog) return;
+
+  const area = edgeFn(v0.sx, v0.sy, v1.sx, v1.sy, v2.sx, v2.sy);
+  if (area === 0) return;
+
+  const minX = Math.round(minXLog * dpr);
+  const minY = Math.round(minYLog * dpr);
+  const bw   = Math.round((maxXLog - minXLog + 1) * dpr);
+  const bh   = Math.round((maxYLog - minYLog + 1) * dpr);
+
+  const imgData = ctx.getImageData(minX, minY, bw, bh);
+  const data = imgData.data;
+
+  // Pre-divide for perspective-correct case
+  const u0z = v0.u / v0.z, u1z = v1.u / v1.z, u2z = v2.u / v2.z;
+  const v0z = v0.v / v0.z, v1z = v1.v / v1.z, v2z = v2.v / v2.z;
+  const i0z = 1 / v0.z,    i1z = 1 / v1.z,    i2z = 1 / v2.z;
+
+  for (let py = 0; py < bh; py++) {
+    for (let px = 0; px < bw; px++) {
+      const xLog = (minX + px + 0.5) / dpr;
+      const yLog = (minY + py + 0.5) / dpr;
+
+      const w0 = edgeFn(v1.sx, v1.sy, v2.sx, v2.sy, xLog, yLog);
+      const w1 = edgeFn(v2.sx, v2.sy, v0.sx, v0.sy, xLog, yLog);
+      const w2 = edgeFn(v0.sx, v0.sy, v1.sx, v1.sy, xLog, yLog);
+
+      const inside = area > 0
+        ? (w0 >= 0 && w1 >= 0 && w2 >= 0)
+        : (w0 <= 0 && w1 <= 0 && w2 <= 0);
+      if (!inside) continue;
+
+      const b0 = w0 / area, b1 = w1 / area, b2 = w2 / area;
+
+      let u, v;
+      if (mode === 'affine') {
+        u = b0 * v0.u + b1 * v1.u + b2 * v2.u;
+        v = b0 * v0.v + b1 * v1.v + b2 * v2.v;
+      } else {
+        const invZ = b0 * i0z + b1 * i1z + b2 * i2z;
+        u = (b0 * u0z + b1 * u1z + b2 * u2z) / invZ;
+        v = (b0 * v0z + b1 * v1z + b2 * v2z) / invZ;
+      }
+
+      const [r, g, b_] = sampleTexture(u, v);
+      const idx = (py * bw + px) * 4;
+      data[idx]     = r;
+      data[idx + 1] = g;
+      data[idx + 2] = b_;
+      data[idx + 3] = 255;
+    }
+  }
+  ctx.putImageData(imgData, minX, minY);
+}
+
+function renderHalf(cx, cy, scale, mode) {
+  const verts = buildQuad();
+  const p = verts.map(v => project(v, cx, cy, scale));
+
+  // Two triangles: TL-TR-BR  and  TL-BR-BL
+  rasterise(p[0], p[1], p[2], mode);
+  rasterise(p[0], p[2], p[3], mode);
+}
+
+/* ── Draw the whole frame ───────────────────────────── */
+function draw() {
+  const w = canvas.clientWidth;
+  const h = canvas.clientHeight;
+  ctx.clearRect(0, 0, w, h);
+
+  const halfW = w / 2;
+  const padding = 26;
+  const labelSpace = 38;
+
+  // Width is widest at max tilt (the near edge swells with perspective).
+  // Height is tallest at tilt=0 (no foreshortening).
+  // Size scale for the worst case of each.
+  const maxTiltRad   = 80 * Math.PI / 180;
+  const minZ         = 3.5 - Math.sin(maxTiltRad);
+  const maxWidthFac  = 2 * 1.5 / minZ;   // near edge at max tilt
+  const maxHeightFac = 2 * 1.5 / 3.5;    // full height at tilt=0
+
+  const availW = halfW - padding * 2;
+  const availH = h - labelSpace - padding;
+  const scale  = Math.min(availW / maxWidthFac, availH / maxHeightFac) * 0.96;
+
+  const cxL = halfW / 2;
+  const cxR = halfW + halfW / 2;
+  const cy  = labelSpace + (h - labelSpace - padding) / 2;
+
+  renderHalf(cxL, cy, scale, 'affine');
+  renderHalf(cxR, cy, scale, 'correct');
+
+  // Labels at top of each half
+  const labelY = labelSpace / 2 + 4;
+  ctx.fillStyle = '#e8c080';
+  ctx.font = 'bold 13px monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('Affine',              cxL, labelY);
+  ctx.fillText('Perspective-correct', cxR, labelY);
+}
+
+/* ── Slider ─────────────────────────────────────────── */
+$('tiltSlider').addEventListener('input', e => {
+  tiltDeg = parseFloat(e.target.value);
+  $('tiltVal').textContent = Math.round(tiltDeg);
+  draw();
+});
+
+/* ── Resize ─────────────────────────────────────────── */
+function resize() {
+  const dpr = Math.min(devicePixelRatio || 1, 2);
+  const rect = canvas.getBoundingClientRect();
+  canvas.width  = Math.max(1, Math.floor(rect.width  * dpr));
+  canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.imageSmoothingEnabled = false;
+  draw();
+}
+window.addEventListener('resize', resize);
+resize();
+</script>
+</body>
+</html>

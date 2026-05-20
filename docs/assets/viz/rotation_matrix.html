@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rotation Matrix — Geometric Origin</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 100%; height: 100%; background: #0d0c0a; overflow: hidden; }
+#wrap { width: 100%; height: 100%; position: relative; background: #0d0c0a; cursor: crosshair; }
+canvas { display: block; }
+
+/* Compact formula panel (2D mode) — color-matched to axis projection labels.
+   cos θ / sin θ in red mirror the red labels (projections of e₁′).
+   cos θ / sin θ in green mirror the green labels (projections of e₂′). */
+#calc {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 300px;
+  max-width: 42vw;
+  background: rgba(18, 17, 14, 0.82);
+  border: 1px solid #2a2520;
+  border-radius: 6px;
+  padding: 14px 18px;
+  font-family: monospace;
+  font-size: 13px;
+  color: #c8bba8;
+  line-height: 1.7;
+  pointer-events: none;
+}
+#calc .formula { margin: 4px 0 8px; }
+#calc .formula:last-child { margin-bottom: 0; }
+#calc .formula > div { font-variant-numeric: tabular-nums; }
+#calc .sym    { color: #c8bba8; }
+#calc .step   { padding-left: 12px; color: #9a8878; }
+#calc .result { padding-left: 12px; color: #e8c080; font-weight: bold; }
+#calc .red    { color: #e05050; font-weight: bold; }
+#calc .green  { color: #50d050; font-weight: bold; }
+
+/* 3D composition formula (3D mode) */
+#matrix3d {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  background: rgba(18, 17, 14, 0.78);
+  border: 1px solid #2a2520;
+  border-radius: 6px;
+  font-family: monospace;
+  padding: 10px 14px;
+  pointer-events: none;
+  font-size: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+#matrix3d .formula { color: #e8c080; font-weight: bold; }
+#matrix3d .hint    { color: #7a6a55; font-size: 12px; }
+
+#bottom {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 0 16px;
+  pointer-events: none;
+}
+
+#tabs {
+  display: flex;
+  gap: 8px;
+  pointer-events: auto;
+}
+.tab {
+  padding: 8px 18px;
+  border-radius: 6px;
+  border: 1px solid #3a3020;
+  background: transparent;
+  color: #7a6a55;
+  font-size: 13px;
+  font-family: monospace;
+  cursor: pointer;
+  transition: all .15s;
+}
+.tab:hover { color: #c8bba8; border-color: #4a3a2a; }
+.tab.on { background: #c8894a; color: #0f0e0c; border-color: #c8894a; }
+
+#controls-2d, #controls-3d {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  pointer-events: auto;
+}
+.slider-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-family: monospace;
+  font-size: 14px;
+  color: #c8bba8;
+}
+.slider-label { color: #e8c080; min-width: 28px; font-weight: bold; }
+.slider-row input[type="range"] {
+  width: 240px;
+  max-width: 60vw;
+  accent-color: #c8894a;
+  cursor: pointer;
+}
+.slider-val { color: #9a8878; min-width: 56px; font-variant-numeric: tabular-nums; }
+
+#info {
+  color: #7a6a55;
+  font-size: 14px;
+  line-height: 1.65;
+  font-family: monospace;
+  pointer-events: none;
+  text-align: center;
+}
+#info .key   { color: #e8c080; }
+#info .red   { color: #e05050; }
+#info .green { color: #50d050; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="calc">
+    <div class="formula">
+      <div class="sym">x′ = x · <span class="red">cos θ</span> − y · <span class="green">sin θ</span></div>
+      <div class="step">= <span id="cFx1">1.50</span>·<span id="cFx2">1.00</span> − <span id="cFx3">1.00</span>·<span id="cFx4">0.00</span></div>
+      <div class="result">= <span id="cXp">1.50</span></div>
+    </div>
+    <div class="formula">
+      <div class="sym">y′ = x · <span class="red">sin θ</span> + y · <span class="green">cos θ</span></div>
+      <div class="step">= <span id="cFy1">1.50</span>·<span id="cFy2">0.00</span> + <span id="cFy3">1.00</span>·<span id="cFy4">1.00</span></div>
+      <div class="result">= <span id="cYp">1.00</span></div>
+    </div>
+  </div>
+
+  <div id="matrix3d" style="display:none">
+    <span class="formula">R = Rz · Ry · Rx</span>
+  </div>
+
+  <div id="bottom">
+    <div id="tabs">
+      <button class="tab on" data-mode="2d">2D Rotation</button>
+      <button class="tab"    data-mode="3d">3D Composition</button>
+    </div>
+
+    <div id="controls-2d">
+      <label class="slider-row">
+        <span class="slider-label">θ</span>
+        <input type="range" id="thetaSlider" min="0" max="6.28319" step="0.005" value="0">
+        <span class="slider-val" id="thetaVal">0°</span>
+      </label>
+    </div>
+
+    <div id="controls-3d" style="display:none">
+      <label class="slider-row">
+        <span class="slider-label">Rx</span>
+        <input type="range" id="rxSlider" min="-3.14159" max="3.14159" step="0.01" value="0.4">
+        <span class="slider-val" id="rxVal">23°</span>
+      </label>
+      <label class="slider-row">
+        <span class="slider-label">Ry</span>
+        <input type="range" id="rySlider" min="-3.14159" max="3.14159" step="0.01" value="0.6">
+        <span class="slider-val" id="ryVal">34°</span>
+      </label>
+      <label class="slider-row">
+        <span class="slider-label">Rz</span>
+        <input type="range" id="rzSlider" min="-3.14159" max="3.14159" step="0.01" value="0">
+        <span class="slider-val" id="rzVal">0°</span>
+      </label>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+<script>
+var mode  = '2d';
+var theta = 0;
+var rx = 0.4, ry = 0.6, rz = 0;
+
+var P = { x: 1.5, y: 1.0 };
+var dragging2D = false;
+var layout2D = { cx: 0, cy: 0, scale: 1 };
+
+var W = 0, H = 0;
+var wrap = document.getElementById('wrap');
+
+var cubeVerts = [
+  [-1,-1,-1], [1,-1,-1], [1,1,-1], [-1,1,-1],
+  [-1,-1, 1], [1,-1, 1], [1,1, 1], [-1,1, 1],
+];
+var cubeEdges = [
+  [0,1,'x'], [3,2,'x'], [4,5,'x'], [7,6,'x'],
+  [0,3,'y'], [1,2,'y'], [4,7,'y'], [5,6,'y'],
+  [0,4,'z'], [1,5,'z'], [2,6,'z'], [3,7,'z'],
+];
+var axisColors = { x: [224,80,80], y: [80,208,80], z: [80,128,224] };
+
+function setup() {
+  var c = createCanvas(wrap.offsetWidth, wrap.offsetHeight);
+  c.parent(wrap);
+  W = width; H = height;
+  textFont('monospace');
+  noLoop();
+  hookUI();
+  updateInfo();
+  updateCalc();
+  redraw();
+}
+
+function windowResized() {
+  resizeCanvas(wrap.offsetWidth, wrap.offsetHeight);
+  W = width; H = height;
+  redraw();
+}
+
+function hookUI() {
+  document.getElementById('thetaSlider').addEventListener('input', function(e) {
+    theta = parseFloat(e.target.value);
+    document.getElementById('thetaVal').textContent = Math.round(theta * 180 / Math.PI) + '°';
+    updateCalc();
+    redraw();
+  });
+  ['rx', 'ry', 'rz'].forEach(function(axis) {
+    document.getElementById(axis + 'Slider').addEventListener('input', function(e) {
+      var v = parseFloat(e.target.value);
+      if      (axis === 'rx') rx = v;
+      else if (axis === 'ry') ry = v;
+      else                    rz = v;
+      document.getElementById(axis + 'Val').textContent = Math.round(v * 180 / Math.PI) + '°';
+      redraw();
+    });
+  });
+
+  document.querySelectorAll('[data-mode]').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      mode = btn.dataset.mode;
+      document.querySelectorAll('[data-mode]').forEach(function(b) { b.classList.remove('on'); });
+      btn.classList.add('on');
+      document.getElementById('controls-2d').style.display = mode === '2d' ? 'flex' : 'none';
+      document.getElementById('controls-3d').style.display = mode === '3d' ? 'flex' : 'none';
+      document.getElementById('calc').style.display        = mode === '2d' ? ''     : 'none';
+      document.getElementById('matrix3d').style.display    = mode === '3d' ? 'flex' : 'none';
+      updateInfo();
+      redraw();
+    });
+  });
+
+  /* Drag P (2D mode only) */
+  wrap.addEventListener('mousedown', function(e) {
+    if (mode !== '2d') return;
+    if (e.target.tagName !== 'CANVAS') return;
+    var l = getLocalXY(e.clientX, e.clientY);
+    if (hitTestP2D(l.x, l.y)) { dragging2D = true; e.preventDefault(); }
+  });
+  window.addEventListener('mousemove', function(e) {
+    if (!dragging2D) return;
+    var l = getLocalXY(e.clientX, e.clientY);
+    setPFromScreen(l.x, l.y);
+    scheduleRender();
+  });
+  window.addEventListener('mouseup', function() { dragging2D = false; });
+
+  wrap.addEventListener('touchstart', function(e) {
+    if (mode !== '2d') return;
+    if (e.target.tagName !== 'CANVAS') return;
+    if (e.touches.length === 0) return;
+    var l = getLocalXY(e.touches[0].clientX, e.touches[0].clientY);
+    if (hitTestP2D(l.x, l.y)) { dragging2D = true; e.preventDefault(); }
+  }, { passive: false });
+  wrap.addEventListener('touchmove', function(e) {
+    if (!dragging2D || e.touches.length === 0) return;
+    var l = getLocalXY(e.touches[0].clientX, e.touches[0].clientY);
+    setPFromScreen(l.x, l.y);
+    scheduleRender();
+    e.preventDefault();
+  }, { passive: false });
+  wrap.addEventListener('touchend',    function() { dragging2D = false; });
+  wrap.addEventListener('touchcancel', function() { dragging2D = false; });
+}
+
+function getLocalXY(clientX, clientY) {
+  var rect = wrap.getBoundingClientRect();
+  return { x: clientX - rect.left, y: clientY - rect.top };
+}
+
+function hitTestP2D(mx, my) {
+  var Ps = math2screen(P.x, P.y);
+  var dx = mx - Ps.x, dy = my - Ps.y;
+  return dx*dx + dy*dy < 24*24;
+}
+
+function setPFromScreen(sx, sy) {
+  P.x = (sx - layout2D.cx) / layout2D.scale;
+  P.y = (layout2D.cy - sy) / layout2D.scale;
+  P.x = Math.max(-1.7, Math.min(1.7, P.x));
+  P.y = Math.max(-1.6, Math.min(1.6, P.y));
+  updateCalc();
+}
+
+function math2screen(mx, my) {
+  return { x: layout2D.cx + mx * layout2D.scale, y: layout2D.cy - my * layout2D.scale };
+}
+
+var pendingRender = false;
+function scheduleRender() {
+  if (pendingRender) return;
+  pendingRender = true;
+  requestAnimationFrame(function() {
+    redraw();
+    pendingRender = false;
+  });
+}
+
+function updateInfo() {
+  var el = document.getElementById('info');
+  if (el) el.innerHTML = '';
+}
+
+function updateCalc() {
+  var c = Math.cos(theta), s = Math.sin(theta);
+  var xp = P.x * c - P.y * s;
+  var yp = P.x * s + P.y * c;
+
+  function setText(id, v) { document.getElementById(id).textContent = v; }
+  function f(v) { return v.toFixed(2); }
+
+  setText('cFx1', f(P.x)); setText('cFx2', f(c)); setText('cFx3', f(P.y)); setText('cFx4', f(s)); setText('cXp', f(xp));
+  setText('cFy1', f(P.x)); setText('cFy2', f(s)); setText('cFy3', f(P.y)); setText('cFy4', f(c)); setText('cYp', f(yp));
+}
+
+function draw() {
+  background(13, 12, 10);
+  if (mode === '2d') drawMode2D();
+  else               drawMode3D();
+}
+
+/* ── 2D mode ─────────────────────────────────────────────── */
+function drawMode2D() {
+  var calcEl = document.getElementById('calc');
+  var calcWidth = (calcEl && calcEl.offsetWidth) ? calcEl.offsetWidth : 300;
+  var calcReserved = calcWidth + 32;
+  var leftPanelW = Math.max(220, W - calcReserved);
+
+  var bottomEl = document.getElementById('bottom');
+  var bottomReserved = bottomEl.offsetHeight + 24;
+  var topMargin = 24;
+  var availH = Math.max(160, H - topMargin - bottomReserved);
+
+  layout2D.cx    = leftPanelW / 2;
+  layout2D.cy    = topMargin + availH / 2;
+  layout2D.scale = Math.min((leftPanelW * 0.82) / 3, (availH * 0.82) / 3);
+
+  drawGeometricView2D();
+}
+
+function drawGeometricView2D() {
+  var cx = layout2D.cx, cy = layout2D.cy, scale = layout2D.scale;
+  var c = Math.cos(theta), s = Math.sin(theta);
+
+  /* Rotated basis vectors in screen coords */
+  var e1x = cx + scale * c,  e1y = cy - scale * s;
+  var e2x = cx - scale * s,  e2y = cy - scale * c;
+
+  /* Coord axes */
+  stroke(46, 40, 32);
+  strokeWeight(1);
+  line(cx - scale * 1.8, cy, cx + scale * 1.8, cy);
+  line(cx, cy - scale * 1.7, cx, cy + scale * 1.7);
+
+  /* Unit circle (faint) */
+  noFill();
+  stroke(60, 50, 40);
+  strokeWeight(1.2);
+  circle(cx, cy, scale * 2);
+
+  /* Trajectory circle for P — emphasises rotation preserves distance */
+  var r = Math.sqrt(P.x * P.x + P.y * P.y);
+  if (r > 0.05) {
+    noFill();
+    stroke(54, 46, 36);
+    strokeWeight(1);
+    drawingContext.setLineDash([3, 5]);
+    circle(cx, cy, r * scale * 2);
+    drawingContext.setLineDash([]);
+  }
+
+  /* ── Projection scaffolding from e₁′ and e₂′ ──
+     Foot-of-perpendicular distances are cos θ, sin θ, −sin θ, cos θ —
+     i.e., the unit-circle definitions. These ARE the formula coefficients. */
+  drawingContext.setLineDash([2, 4]);
+  strokeWeight(1);
+  if (Math.abs(s) > 0.02) { stroke(224, 80, 80, 140); line(e1x, e1y, e1x, cy); }
+  if (Math.abs(c) > 0.02) { stroke(224, 80, 80, 140); line(e1x, e1y, cx,  e1y); }
+  if (Math.abs(c) > 0.02) { stroke(80, 208, 80, 140); line(e2x, e2y, e2x, cy); }
+  if (Math.abs(s) > 0.02) { stroke(80, 208, 80, 140); line(e2x, e2y, cx,  e2y); }
+  drawingContext.setLineDash([]);
+
+  /* θ angle arc near origin */
+  if (Math.abs(theta) > 0.04) {
+    var arcR = scale * 0.28;
+    noFill();
+    stroke(232, 192, 128, 220);
+    strokeWeight(1.5);
+    beginShape();
+    var steps = Math.max(10, Math.ceil(Math.abs(theta) * 12));
+    for (var i = 0; i <= steps; i++) {
+      var a = (i / steps) * theta;
+      vertex(cx + arcR * Math.cos(a), cy - arcR * Math.sin(a));
+    }
+    endShape();
+    var midA = theta / 2;
+    var lblR = arcR + 14;
+    noStroke();
+    fill(232, 192, 128);
+    textSize(14);
+    textStyle(BOLD);
+    textAlign(CENTER, CENTER);
+    text('θ', cx + lblR * Math.cos(midA), cy - lblR * Math.sin(midA));
+    textStyle(NORMAL);
+    textAlign(LEFT, BASELINE);
+  }
+
+  /* Original basis (faded, dashed) — reference */
+  drawingContext.setLineDash([3, 5]);
+  stroke(224, 80, 80, 75);
+  strokeWeight(1.5);
+  line(cx, cy, cx + scale, cy);
+  stroke(80, 208, 80, 75);
+  line(cx, cy, cx, cy - scale);
+  drawingContext.setLineDash([]);
+
+  /* Rotated basis (bright with arrowheads) */
+  drawArrow(cx, cy, e1x, e1y, 224, 80, 80, 2.4);
+  drawArrow(cx, cy, e2x, e2y, 80, 208, 80, 2.4);
+
+  /* Projection foot dots */
+  noStroke();
+  if (Math.abs(s) > 0.02) { fill(224, 80, 80); circle(e1x, cy, 6); }
+  if (Math.abs(c) > 0.02) { fill(224, 80, 80); circle(cx, e1y, 6); }
+  if (Math.abs(c) > 0.02) { fill(80, 208, 80); circle(e2x, cy, 6); }
+  if (Math.abs(s) > 0.02) { fill(80, 208, 80); circle(cx, e2y, 6); }
+
+  /* ── THE KEY: symbolic axis labels matching the formula coefficients ── */
+  textSize(12);
+  textStyle(BOLD);
+
+  // e₁′.x = cos θ on x-axis (red)
+  if (Math.abs(c) > 0.10) {
+    fill(224, 80, 80);
+    textAlign(CENTER, TOP);
+    text('cos θ', e1x, cy + 8);
+  }
+  // e₁′.y = sin θ on y-axis (red)
+  if (Math.abs(s) > 0.10) {
+    fill(224, 80, 80);
+    textAlign(RIGHT, CENTER);
+    text('sin θ', cx - 8, e1y);
+  }
+  // e₂′.x = −sin θ on x-axis (green)
+  if (Math.abs(s) > 0.10) {
+    fill(80, 208, 80);
+    textAlign(CENTER, TOP);
+    text('−sin θ', e2x, cy + 8);
+  }
+  // e₂′.y = cos θ on y-axis (green)
+  if (Math.abs(c) > 0.10) {
+    fill(80, 208, 80);
+    textAlign(RIGHT, CENTER);
+    text('cos θ', cx - 8, e2y);
+  }
+  textStyle(NORMAL);
+  textAlign(LEFT, BASELINE);
+
+  /* Basis vector tip labels e₁′, e₂′ */
+  textSize(13);
+  textStyle(BOLD);
+  fill(224, 80, 80);
+  text("e₁'", e1x + 9, e1y - 4);
+  fill(80, 208, 80);
+  text("e₂'", e2x + 9, e2y - 4);
+  textStyle(NORMAL);
+
+  /* Origin */
+  noStroke();
+  fill(200, 187, 168);
+  circle(cx, cy, 4);
+
+  /* ── P (draggable) and P′ (computed) ── */
+  var Pp  = { x: P.x * c - P.y * s, y: P.x * s + P.y * c };
+  var Ps  = math2screen(P.x,  P.y);
+  var Pps = math2screen(Pp.x, Pp.y);
+
+  // Line from origin to P (cream) — visible but subdued
+  stroke(154, 136, 120, 180);
+  strokeWeight(1.4);
+  line(cx, cy, Ps.x, Ps.y);
+
+  // Line from origin to P' (amber, bright)
+  stroke(200, 137, 74);
+  strokeWeight(1.8);
+  line(cx, cy, Pps.x, Pps.y);
+
+  // Arc from P to P' along trajectory
+  var alpha = Math.atan2(P.y, P.x);
+  if (Math.abs(theta) > 0.04 && r > 0.08) {
+    noFill();
+    stroke(232, 192, 128, 210);
+    strokeWeight(1.6);
+    beginShape();
+    var stepsT = Math.max(12, Math.ceil(Math.abs(theta) * 16));
+    for (var i = 0; i <= stepsT; i++) {
+      var a = alpha + (i / stepsT) * theta;
+      vertex(cx + r * scale * Math.cos(a), cy - r * scale * Math.sin(a));
+    }
+    endShape();
+  }
+
+  // P dot
+  noStroke();
+  fill(13, 12, 10);
+  circle(Ps.x, Ps.y, 18);
+  fill(200, 187, 168);
+  stroke(13, 12, 10);
+  strokeWeight(2);
+  circle(Ps.x, Ps.y, 13);
+
+  // P' dot
+  noStroke();
+  fill(13, 12, 10);
+  circle(Pps.x, Pps.y, 18);
+  fill(200, 137, 74);
+  stroke(13, 12, 10);
+  strokeWeight(2);
+  circle(Pps.x, Pps.y, 13);
+
+  // P / P′ tip labels
+  noStroke();
+  textSize(14);
+  textStyle(BOLD);
+  fill(200, 187, 168);
+  text('P', Ps.x + 12, Ps.y - 10);
+  fill(200, 137, 74);
+  text("P'", Pps.x + 12, Pps.y - 10);
+  textStyle(NORMAL);
+
+  /* Axis tickers */
+  fill(122, 106, 85);
+  textSize(13);
+  text('x', cx + scale * 1.8 + 6, cy + 4);
+  text('y', cx - 4, cy - scale * 1.7 - 6);
+}
+
+function drawArrow(x0, y0, x1, y1, r, g, b, w) {
+  var angle   = Math.atan2(y1 - y0, x1 - x0);
+  var headLen = 10;
+  var lx = x1 - Math.cos(angle) * headLen;
+  var ly = y1 - Math.sin(angle) * headLen;
+
+  stroke(r, g, b);
+  strokeWeight(w);
+  line(x0, y0, lx, ly);
+
+  noStroke();
+  fill(r, g, b);
+  push();
+  translate(x1, y1);
+  rotate(angle);
+  triangle(0, 0, -headLen, -headLen * 0.55, -headLen, headLen * 0.55);
+  pop();
+}
+
+/* ── 3D mode ─────────────────────────────────────────────── */
+function rotX3(p, a) {
+  var c = Math.cos(a), s = Math.sin(a);
+  return [p[0], c*p[1] - s*p[2], s*p[1] + c*p[2]];
+}
+function rotY3(p, a) {
+  var c = Math.cos(a), s = Math.sin(a);
+  return [c*p[0] + s*p[2], p[1], -s*p[0] + c*p[2]];
+}
+function rotZ3(p, a) {
+  var c = Math.cos(a), s = Math.sin(a);
+  return [c*p[0] - s*p[1], s*p[0] + c*p[1], p[2]];
+}
+
+function drawMode3D() {
+  var topMargin      = 80;
+  var bottomEl       = document.getElementById('bottom');
+  var bottomReserved = bottomEl.offsetHeight + 24;
+  var availH         = Math.max(120, H - topMargin - bottomReserved);
+
+  var cx       = W / 2;
+  var cy       = topMargin + availH / 2;
+  var scale    = Math.min(W * 0.16, availH * 0.30);
+  var camDist  = 4;
+
+  function project(p) {
+    var s = camDist / (camDist - p[2]);
+    return { x: cx + p[0] * scale * s, y: cy - p[1] * scale * s };
+  }
+
+  var transformed = cubeVerts.map(function(v) {
+    var p = v.slice();
+    p = rotX3(p, rx);
+    p = rotY3(p, ry);
+    p = rotZ3(p, rz);
+    return p;
+  });
+  var projected = transformed.map(project);
+
+  drawingContext.setLineDash([3, 5]);
+  ['x','y','z'].forEach(function(ax, i) {
+    var col  = axisColors[ax];
+    var dirA = [0,0,0]; dirA[i] = -1.8;
+    var dirB = [0,0,0]; dirB[i] =  1.8;
+    stroke(col[0], col[1], col[2], 70);
+    strokeWeight(1);
+    var p0 = project(dirA), p1 = project(dirB);
+    line(p0.x, p0.y, p1.x, p1.y);
+  });
+  drawingContext.setLineDash([]);
+
+  strokeWeight(2);
+  for (var i = 0; i < cubeEdges.length; i++) {
+    var e   = cubeEdges[i];
+    var col = axisColors[e[2]];
+    stroke(col[0], col[1], col[2], 230);
+    var p1 = projected[e[0]], p2 = projected[e[1]];
+    line(p1.x, p1.y, p2.x, p2.y);
+  }
+
+  noStroke();
+  fill(200, 187, 168);
+  for (var i = 0; i < 8; i++) {
+    var p = projected[i];
+    circle(p.x, p.y, 5);
+  }
+
+  textSize(13);
+  textStyle(BOLD);
+  ['x','y','z'].forEach(function(ax, i) {
+    var col = axisColors[ax];
+    var dir = [0,0,0]; dir[i] = 2.0;
+    var p   = project(dir);
+    fill(col[0], col[1], col[2], 220);
+    text(ax.toUpperCase(), p.x + 5, p.y - 4);
+  });
+  textStyle(NORMAL);
+}
+</script>
+</body>
+</html>
