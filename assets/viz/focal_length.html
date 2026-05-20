@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Focal Length &amp; Projection</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 100%; height: 100%; background: #0d0c0a; overflow: hidden; font-family: monospace; }
+
+#wrap {
+  width: 100%; height: 100%;
+  position: relative;
+  background: #0d0c0a;
+}
+canvas { display: block; }
+
+#hint {
+  position: absolute;
+  top: 16px; left: 50%; transform: translateX(-50%);
+  color: #4a3a2a;
+  font-size: 12px;
+  pointer-events: none;
+}
+
+#hud {
+  position: absolute;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  pointer-events: none;
+  max-width: calc(100% - 32px);
+}
+
+#formulas {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: center;
+  pointer-events: none;
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+.formula-line { white-space: nowrap; }
+.formula-line .lhs { color: #c8bba8; }
+.formula-line .arr { color: #5a4836; margin: 0 7px; }
+.formula-line .val { color: #d4a855; font-variant-numeric: tabular-nums; }
+.formula-line .res { color: #e8c080; font-weight: bold; font-variant-numeric: tabular-nums; }
+.formula-line .status {
+  margin-left: 10px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11.5px;
+  font-weight: bold;
+  letter-spacing: 0.04em;
+}
+.formula-line .status.inview {
+  color: #50d050;
+  background: rgba(80, 208, 80, 0.10);
+}
+.formula-line .status.clipped {
+  color: #e05050;
+  background: rgba(224, 80, 80, 0.10);
+}
+
+.slider-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 14px;
+  color: #c8bba8;
+  pointer-events: auto;
+}
+.slider-row .label {
+  color: #e8c080;
+  font-weight: bold;
+}
+.slider-row input[type="range"] {
+  width: 280px;
+  max-width: 50vw;
+  accent-color: #c8894a;
+  cursor: pointer;
+}
+.slider-row .val {
+  color: #9a8878;
+  font-variant-numeric: tabular-nums;
+  min-width: 46px;
+  text-align: left;
+}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <span id="hint">drag the slider · drag point P</span>
+  <canvas id="cv"></canvas>
+  <div id="hud">
+    <div id="formulas">
+      <div class="formula-line">
+        <span class="lhs">focal_l = 1/tan(FOV/2)</span>
+        <span class="arr">=</span>
+        <span class="val">1/tan(<span id="halfFov">30°</span>)</span>
+        <span class="arr">=</span>
+        <span class="res" id="focalOut">1.73</span>
+      </div>
+      <div class="formula-line">
+        <span class="lhs">y<sub>s</sub> = focal_l · y / z</span>
+        <span class="arr">=</span>
+        <span class="val"><span id="fShow">1.73</span> · <span id="yShow">0.50</span> / <span id="zShow">3.00</span></span>
+        <span class="arr">=</span>
+        <span class="res" id="ysOut">0.29</span>
+        <span class="status inview" id="statusOut">in view</span>
+      </div>
+    </div>
+    <div class="slider-row">
+      <span class="label">FOV</span>
+      <input type="range" id="fovSlider" min="20" max="120" step="1" value="60">
+      <span class="val"><span id="fovVal">60</span>°</span>
+    </div>
+  </div>
+</div>
+
+<script>
+const wrap   = document.getElementById('wrap');
+const canvas = document.getElementById('cv');
+const ctx    = canvas.getContext('2d');
+const dpr    = window.devicePixelRatio || 1;
+
+let fov = 60;                    // degrees — the programmer's INPUT
+let pointP = { z: 3.0, y: 0.5 }; // draggable point in world space
+let dragging = false;
+
+const els = {
+  fovSlider: document.getElementById('fovSlider'),
+  fovVal:    document.getElementById('fovVal'),
+  halfFov:   document.getElementById('halfFov'),
+  focalOut:  document.getElementById('focalOut'),
+  fShow:     document.getElementById('fShow'),
+  yShow:     document.getElementById('yShow'),
+  zShow:     document.getElementById('zShow'),
+  ysOut:     document.getElementById('ysOut'),
+  statusOut: document.getElementById('statusOut'),
+};
+
+/* In the rasterizer:  const float focal_l = 1/tanf(radianes(fov) / 2);
+   That's m[1][1] in the projection matrix. After perspective divide (w = z),
+   y_ndc = focal_l · y / z. NDC has half-height 1, so this animation visualizes
+   the y-coordinate that ends up on the screen directly. */
+function focalLength() {
+  return 1 / Math.tan(fov * Math.PI / 360);
+}
+
+function updateInfo() {
+  const fl = focalLength();
+  const ys = fl * pointP.y / pointP.z;
+  const clipped = Math.abs(ys) > 1;
+
+  els.fovVal.textContent   = Math.round(fov);
+  els.halfFov.textContent  = Math.round(fov / 2) + '°';
+  els.focalOut.textContent = fl.toFixed(2);
+
+  els.fShow.textContent = fl.toFixed(2);
+  els.yShow.textContent = pointP.y.toFixed(2);
+  els.zShow.textContent = pointP.z.toFixed(2);
+  els.ysOut.textContent = ys.toFixed(2);
+
+  if (clipped) {
+    els.statusOut.textContent = 'clipped';
+    els.statusOut.className = 'status clipped';
+  } else {
+    els.statusOut.textContent = 'in view';
+    els.statusOut.className = 'status inview';
+  }
+}
+
+els.fovSlider.addEventListener('input', e => {
+  fov = parseFloat(e.target.value);
+  updateInfo();
+});
+
+function resize() {
+  const w = wrap.offsetWidth;
+  const h = wrap.offsetHeight;
+  canvas.width  = w * dpr;
+  canvas.height = h * dpr;
+  canvas.style.width  = w + 'px';
+  canvas.style.height = h + 'px';
+}
+
+function layout(cw, ch) {
+  const hudReserve = 150;
+  const usableH = ch - hudReserve;
+  const originX = Math.min(cw * 0.13, 110);
+  const originY = usableH / 2 + 22;
+  const maxF = 1 / Math.tan(10 * Math.PI / 180);
+  const scale = Math.max(35, Math.min(72, (0.84 * cw - originX) / Math.max(maxF, 10)));
+  return { originX, originY, scale };
+}
+
+function worldToCanvas(z, y, ox, oy, scale) {
+  return { x: ox + z * scale, y: oy - y * scale };
+}
+function canvasToWorld(cx, cy, ox, oy, scale) {
+  return { z: (cx - ox) / scale, y: -(cy - oy) / scale };
+}
+
+function roundRect(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+function drawCamera(cx, cy) {
+  ctx.fillStyle = '#1c1916';
+  ctx.strokeStyle = '#5a4836';
+  ctx.lineWidth = 1.5;
+  roundRect(cx - 28, cy - 14, 22, 28, 3);
+  ctx.fill();
+  ctx.stroke();
+
+  roundRect(cx - 22, cy - 19, 9, 6, 1.5);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.arc(cx - 6, cy, 9, -Math.PI/2, Math.PI/2);
+  ctx.closePath();
+  ctx.fillStyle = '#262321';
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = '#7a6a55';
+  ctx.beginPath();
+  ctx.arc(cx - 1, cy, 2.5, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function draw() {
+  const cw = canvas.width  / dpr;
+  const ch = canvas.height / dpr;
+
+  ctx.save();
+  ctx.scale(dpr, dpr);
+  ctx.fillStyle = '#0d0c0a';
+  ctx.fillRect(0, 0, cw, ch);
+
+  const { originX, originY, scale } = layout(cw, ch);
+  const fl = focalLength();
+  const halfFovRad = fov * Math.PI / 360;
+  const tanHalf = Math.tan(halfFovRad);
+
+  const imgX     = originX + fl * scale;
+  const imgHalfH = 1.0 * scale;
+  const imgTopY  = originY - imgHalfH;
+  const imgBotY  = originY + imgHalfH;
+  const farX     = cw + 200;
+
+  // 1. Cone fill — visible volume
+  ctx.fillStyle = 'rgba(232, 192, 128, 0.05)';
+  ctx.beginPath();
+  ctx.moveTo(originX, originY);
+  ctx.lineTo(farX, originY - (farX - originX) * tanHalf);
+  ctx.lineTo(farX, originY + (farX - originX) * tanHalf);
+  ctx.closePath();
+  ctx.fill();
+
+  // 2. Optical axis (dashed dim)
+  ctx.strokeStyle = '#3a3020';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([5, 5]);
+  ctx.beginPath();
+  ctx.moveTo(originX + 6, originY);
+  ctx.lineTo(cw - 16, originY);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // 3. FOV rays
+  ctx.strokeStyle = '#e8c080';
+  ctx.globalAlpha = 0.6;
+  ctx.lineWidth = 1.4;
+  ctx.beginPath();
+  ctx.moveTo(originX, originY);
+  ctx.lineTo(farX, originY - (farX - originX) * tanHalf);
+  ctx.moveTo(originX, originY);
+  ctx.lineTo(farX, originY + (farX - originX) * tanHalf);
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+
+  // 4. Image plane
+  ctx.strokeStyle = '#c8bba8';
+  ctx.lineWidth = 2.6;
+  ctx.beginPath();
+  ctx.moveTo(imgX, imgTopY);
+  ctx.lineTo(imgX, imgBotY);
+  ctx.stroke();
+  ctx.fillStyle = '#c8bba8';
+  ctx.beginPath();
+  ctx.arc(imgX, imgTopY, 4, 0, Math.PI * 2);
+  ctx.arc(imgX, imgBotY, 4, 0, Math.PI * 2);
+  ctx.fill();
+
+  // ─── Projection of point P ────────────────────────────────
+  const pCanvas = worldToCanvas(pointP.z, pointP.y, originX, originY, scale);
+  const ys = fl * pointP.y / pointP.z;
+  const ysCanvasY = originY - ys * scale;
+  const clipped = Math.abs(ys) > 1;
+
+  // 5. Dashed drop-line from P to optical axis (the 'y' leg of the big triangle)
+  ctx.strokeStyle = '#4a3a2a';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([3, 3]);
+  ctx.beginPath();
+  ctx.moveTo(pCanvas.x, originY);
+  ctx.lineTo(pCanvas.x, pCanvas.y);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // 6. Projection ray from camera through P (extended past for clarity)
+  const rayDx = pCanvas.x - originX;
+  const rayDy = pCanvas.y - originY;
+  const tEdge = rayDx > 0 ? (cw - 20 - originX) / rayDx : 1.5;
+  const tExt  = Math.max(tEdge, 1.15);
+  const rayEndX = originX + rayDx * tExt;
+  const rayEndY = originY + rayDy * tExt;
+
+  ctx.strokeStyle = clipped ? '#e05050' : '#d4a855';
+  ctx.lineWidth = 1.8;
+  ctx.globalAlpha = 0.92;
+  ctx.beginPath();
+  ctx.moveTo(originX, originY);
+  ctx.lineTo(rayEndX, rayEndY);
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+
+  // 7. y_s marker on the image plane
+  // Horizontal tick to emphasise the position
+  ctx.strokeStyle = clipped ? '#e05050' : '#e8c080';
+  ctx.lineWidth = 2.2;
+  ctx.beginPath();
+  ctx.moveTo(imgX - 10, ysCanvasY);
+  ctx.lineTo(imgX + 10, ysCanvasY);
+  ctx.stroke();
+  // Bright dot
+  ctx.fillStyle = clipped ? '#e05050' : '#e8c080';
+  ctx.beginPath();
+  ctx.arc(imgX, ysCanvasY, 5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#0d0c0a';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // y_s label
+  ctx.fillStyle = clipped ? '#e05050' : '#e8c080';
+  ctx.font = 'bold 13px monospace';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('yₛ', imgX + 15, ysCanvasY);
+
+  // 8. Object point P (orange dot)
+  ctx.fillStyle = '#c8894a';
+  ctx.beginPath();
+  ctx.arc(pCanvas.x, pCanvas.y, 7, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#0d0c0a';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  // P label
+  ctx.fillStyle = '#c8bba8';
+  ctx.font = 'bold 14px monospace';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'bottom';
+  ctx.fillText('P', pCanvas.x + 11, pCanvas.y - 5);
+
+  // ─── Camera, FOV arc, labels ──────────────────────────────
+  const arcRadius = Math.min(fl * scale * 0.4, 38);
+  ctx.strokeStyle = '#c8894a';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(originX, originY, arcRadius, -halfFovRad, halfFovRad);
+  ctx.stroke();
+  ctx.fillStyle = '#e8c080';
+  ctx.font = 'bold 13px monospace';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(Math.round(fov) + '°', originX + arcRadius + 6, originY);
+
+  drawCamera(originX, originY);
+
+  // focal_l label between camera and image plane
+  const fArrowY = imgBotY + 22;
+  ctx.strokeStyle = '#7a6a55';
+  ctx.fillStyle = '#9a8878';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(originX, originY + 18);
+  ctx.lineTo(originX, fArrowY + 4);
+  ctx.moveTo(imgX, imgBotY + 8);
+  ctx.lineTo(imgX, fArrowY + 4);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(originX + 4, fArrowY);
+  ctx.lineTo(imgX - 4, fArrowY);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(originX + 4, fArrowY);
+  ctx.lineTo(originX + 10, fArrowY - 3.5);
+  ctx.lineTo(originX + 10, fArrowY + 3.5);
+  ctx.closePath();
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(imgX - 4, fArrowY);
+  ctx.lineTo(imgX - 10, fArrowY - 3.5);
+  ctx.lineTo(imgX - 10, fArrowY + 3.5);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillStyle = '#d4a855';
+  ctx.font = 'italic bold 14px monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'bottom';
+  ctx.fillText('focal_l', (originX + imgX) / 2, fArrowY - 5);
+
+  // Half-height "1" label
+  const hLabelX = imgX + 22;
+  ctx.strokeStyle = '#7a6a55';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(hLabelX, originY);
+  ctx.lineTo(hLabelX, imgTopY + 3);
+  ctx.stroke();
+  ctx.fillStyle = '#9a8878';
+  ctx.beginPath();
+  ctx.moveTo(hLabelX, imgTopY + 3);
+  ctx.lineTo(hLabelX - 3.5, imgTopY + 9);
+  ctx.lineTo(hLabelX + 3.5, imgTopY + 9);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = '#d4a855';
+  ctx.font = 'italic bold 14px monospace';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('1', hLabelX + 5, originY - imgHalfH / 2);
+
+  // "image plane" caption
+  ctx.fillStyle = '#7a6a55';
+  ctx.font = 'italic 12px monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'bottom';
+  ctx.fillText('image plane', imgX, imgTopY - 8);
+
+  ctx.restore();
+}
+
+// ─── Drag handling for P ─────────────────────────────────────
+function localCoords(clientX, clientY) {
+  const rect = canvas.getBoundingClientRect();
+  return { x: clientX - rect.left, y: clientY - rect.top };
+}
+
+function pointHitTest(cx, cy) {
+  const { originX, originY, scale } = layout(canvas.width / dpr, canvas.height / dpr);
+  const pCanvas = worldToCanvas(pointP.z, pointP.y, originX, originY, scale);
+  const dx = cx - pCanvas.x;
+  const dy = cy - pCanvas.y;
+  return dx * dx + dy * dy < 22 * 22;
+}
+
+function dragTo(cx, cy) {
+  const cw = canvas.width / dpr;
+  const ch = canvas.height / dpr;
+  const { originX, originY, scale } = layout(cw, ch);
+  const w = canvasToWorld(cx, cy, originX, originY, scale);
+
+  /* Clamp to the visible canvas bounds, not a fixed range. This way the user
+     can drag P anywhere inside the canvas — including well outside the FOV
+     cone, where |yₛ| > 1 and the projection gets flagged as clipped. */
+  const zMax   = (cw - 30 - originX) / scale;
+  const yLimit = (originY - 30) / scale;
+
+  pointP.z = Math.max(0.3,     Math.min(zMax,   w.z));
+  pointP.y = Math.max(-yLimit, Math.min(yLimit, w.y));
+
+  updateInfo();
+}
+
+canvas.addEventListener('mousedown', e => {
+  const { x, y } = localCoords(e.clientX, e.clientY);
+  if (pointHitTest(x, y)) {
+    dragging = true;
+    canvas.style.cursor = 'grabbing';
+  }
+});
+window.addEventListener('mousemove', e => {
+  const { x, y } = localCoords(e.clientX, e.clientY);
+  if (dragging) {
+    dragTo(x, y);
+  } else {
+    canvas.style.cursor = pointHitTest(x, y) ? 'grab' : 'default';
+  }
+});
+window.addEventListener('mouseup', () => {
+  dragging = false;
+  canvas.style.cursor = 'default';
+});
+
+canvas.addEventListener('touchstart', e => {
+  if (e.touches.length === 0) return;
+  const { x, y } = localCoords(e.touches[0].clientX, e.touches[0].clientY);
+  if (pointHitTest(x, y)) {
+    dragging = true;
+    e.preventDefault();
+  }
+}, { passive: false });
+window.addEventListener('touchmove', e => {
+  if (!dragging || e.touches.length === 0) return;
+  const { x, y } = localCoords(e.touches[0].clientX, e.touches[0].clientY);
+  dragTo(x, y);
+  e.preventDefault();
+}, { passive: false });
+window.addEventListener('touchend',    () => { dragging = false; });
+window.addEventListener('touchcancel', () => { dragging = false; });
+
+function tick() {
+  draw();
+  requestAnimationFrame(tick);
+}
+
+window.addEventListener('resize', resize);
+resize();
+updateInfo();
+tick();
+</script>
+</body>
+</html>

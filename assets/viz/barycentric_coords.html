@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Edge Function & Barycentric Coordinates</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 100%; height: 100%; background: #0d0c0a; overflow: hidden; }
+#wrap { width: 100%; height: 100%; position: relative; background: #0d0c0a; cursor: crosshair; }
+canvas { display: block; }
+
+#panel {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  padding: 14px 18px;
+  background: rgba(18, 17, 14, 0.86);
+  border: 1px solid #2a2520;
+  border-radius: 6px;
+  color: #c8bba8;
+  font-family: monospace;
+  pointer-events: none;
+  min-width: 188px;
+}
+#panel .title {
+  color: #e8c080;
+  font-size: 13px;
+  letter-spacing: 0.10em;
+  margin-bottom: 10px;
+  text-transform: uppercase;
+}
+#panel .row {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  font-size: 15px;
+  line-height: 1.7;
+}
+#panel .lbl-a { color: #e05050; }
+#panel .lbl-b { color: #50d050; }
+#panel .lbl-c { color: #5080e0; }
+#panel .val   { color: #c8bba8; }
+#panel .val.neg { color: #e05050; }
+#panel .status {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #2a2520;
+  font-size: 16px;
+  letter-spacing: 0.12em;
+  font-weight: bold;
+}
+#panel .status.in  { color: #50d050; }
+#panel .status.out { color: #e05050; }
+#panel .reason {
+  color: #9a8878;
+  font-size: 13px;
+  margin-top: 4px;
+  min-height: 16px;
+}
+
+#info {
+  position: absolute;
+  bottom: 14px;
+  left: 16px;
+  right: 16px;
+  color: #7a6a55;
+  font-size: 14px;
+  line-height: 1.8;
+  font-family: monospace;
+  pointer-events: none;
+}
+#info .key { color: #e8c080; }
+#info .a   { color: #e05050; }
+#info .b   { color: #50d050; }
+#info .c   { color: #5080e0; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="panel">
+    <div class="title">Barycentric</div>
+    <div class="row"><span class="lbl-a">λ₁ (A)</span><span class="val" id="v1">0.000</span></div>
+    <div class="row"><span class="lbl-b">λ₂ (B)</span><span class="val" id="v2">0.000</span></div>
+    <div class="row"><span class="lbl-c">λ₃ (C)</span><span class="val" id="v3">0.000</span></div>
+    <div class="status in" id="status">INSIDE</div>
+    <div class="reason" id="reason">&nbsp;</div>
+  </div>
+  <div id="info">
+    <span class="a">λ₁ = area(PBC)/area(ABC)</span>  ·  <span class="b">λ₂ = area(PCA)/area(ABC)</span>  ·  <span class="c">λ₃ = area(PAB)/area(ABC)</span>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+<script>
+/* Triangle vertices stored as normalized [0,1] positions so they survive resize.
+   Defaults shifted slightly up-left so the right-side panel and bottom info bar
+   don't overlap the points in narrow MkDocs iframes. */
+var A = { nx: 0.26, ny: 0.26, r: 224, g: 80,  b: 80,  label: 'A' };
+var B = { nx: 0.65, ny: 0.32, r: 80,  g: 208, b: 80,  label: 'B' };
+var C = { nx: 0.42, ny: 0.72, r: 80,  g: 128, b: 224, label: 'C' };
+var P = { nx: 0.44, ny: 0.48 };
+
+var dragging = null;
+var W = 0, H = 0;
+
+var v1El = document.getElementById('v1');
+var v2El = document.getElementById('v2');
+var v3El = document.getElementById('v3');
+var stEl = document.getElementById('status');
+var rsEl = document.getElementById('reason');
+var wrap = document.getElementById('wrap');
+
+function setup() {
+  var c = createCanvas(wrap.offsetWidth, wrap.offsetHeight);
+  c.parent(wrap);
+  W = width; H = height;
+  textFont('monospace');
+}
+
+function windowResized() {
+  resizeCanvas(wrap.offsetWidth, wrap.offsetHeight);
+  W = width; H = height;
+}
+
+function px(pt) { return { x: pt.nx * W, y: pt.ny * H }; }
+
+/* Edge function: 2× signed area of triangle (p1, p2, p3). */
+function edge(p1, p2, p3) {
+  return (p2.x - p1.x) * (p3.y - p1.y) - (p2.y - p1.y) * (p3.x - p1.x);
+}
+
+function draw() {
+  background(13, 12, 10);
+
+  var Ap = px(A), Bp = px(B), Cp = px(C), Pp = px(P);
+
+  /* Barycentric weights */
+  var areaABC = edge(Ap, Bp, Cp);
+  var l1, l2, l3, inside;
+  if (Math.abs(areaABC) < 1) {
+    l1 = l2 = l3 = NaN;
+    inside = false;
+  } else {
+    l1 = edge(Bp, Cp, Pp) / areaABC; // weight for A — area(PBC)/area(ABC)
+    l2 = edge(Cp, Ap, Pp) / areaABC; // weight for B — area(PCA)/area(ABC)
+    l3 = edge(Ap, Bp, Pp) / areaABC; // weight for C — area(PAB)/area(ABC)
+    inside = l1 >= 0 && l2 >= 0 && l3 >= 0;
+  }
+
+  /* Sub-triangles — each one's area equals the barycentric weight of the
+     OPPOSITE vertex, so we color them by that vertex's color. */
+  noStroke();
+  fill(A.r, A.g, A.b, 0.08 * 255); // PBC opposite A → red
+  triangle(Pp.x, Pp.y, Bp.x, Bp.y, Cp.x, Cp.y);
+  fill(B.r, B.g, B.b, 0.08 * 255); // PCA opposite B → green
+  triangle(Pp.x, Pp.y, Cp.x, Cp.y, Ap.x, Ap.y);
+  fill(C.r, C.g, C.b, 0.08 * 255); // PAB opposite C → blue
+  triangle(Pp.x, Pp.y, Ap.x, Ap.y, Bp.x, Bp.y);
+
+  /* Sub-triangle delimiter lines from P to each vertex (dashed) */
+  stroke(122, 106, 85, 180);
+  strokeWeight(1);
+  drawingContext.setLineDash([4, 5]);
+  line(Pp.x, Pp.y, Ap.x, Ap.y);
+  line(Pp.x, Pp.y, Bp.x, Bp.y);
+  line(Pp.x, Pp.y, Cp.x, Cp.y);
+  drawingContext.setLineDash([]);
+
+  /* Main triangle edges */
+  stroke(154, 136, 120, 220);
+  strokeWeight(1.6);
+  noFill();
+  triangle(Ap.x, Ap.y, Bp.x, Bp.y, Cp.x, Cp.y);
+
+  /* Vertex labels (offset away from triangle interior) */
+  drawVertexLabel('A', Ap, Bp, Cp, A.r, A.g, A.b);
+  drawVertexLabel('B', Bp, Ap, Cp, B.r, B.g, B.b);
+  drawVertexLabel('C', Cp, Ap, Bp, C.r, C.g, C.b);
+
+  /* Vertex handles */
+  drawVertex(Ap, A, dragging === A);
+  drawVertex(Bp, B, dragging === B);
+  drawVertex(Cp, C, dragging === C);
+
+  /* Test point P */
+  drawTestPoint(Pp, l1, l2, l3, inside, dragging === P);
+
+  /* HUD */
+  updatePanel(l1, l2, l3, inside);
+}
+
+function drawVertexLabel(txt, here, o1, o2, r, g, b) {
+  var mx = (o1.x + o2.x) * 0.5;
+  var my = (o1.y + o2.y) * 0.5;
+  var dx = here.x - mx, dy = here.y - my;
+  var L = Math.sqrt(dx*dx + dy*dy) || 1;
+  var off = 26;
+  var lx = here.x + (dx / L) * off - 6;
+  var ly = here.y + (dy / L) * off + 6;
+  noStroke();
+  fill(r, g, b);
+  textSize(18);
+  textStyle(BOLD);
+  text(txt, lx, ly);
+  textStyle(NORMAL);
+}
+
+function drawVertex(p, v, active) {
+  if (active) {
+    noFill();
+    stroke(v.r, v.g, v.b, 100);
+    strokeWeight(2);
+    circle(p.x, p.y, 32);
+  }
+  stroke(13, 12, 10);
+  strokeWeight(2.5);
+  fill(v.r, v.g, v.b);
+  circle(p.x, p.y, 20); // 10px radius per spec
+}
+
+function drawTestPoint(p, l1, l2, l3, inside, active) {
+  if (active) {
+    noFill();
+    stroke(232, 192, 128, 140);
+    strokeWeight(2);
+    circle(p.x, p.y, 34);
+  }
+  noFill();
+  stroke(200, 187, 168);
+  strokeWeight(2);
+  circle(p.x, p.y, 22);
+
+  noStroke();
+  if (inside) {
+    var r = l1 * A.r + l2 * B.r + l3 * C.r;
+    var g = l1 * A.g + l2 * B.g + l3 * C.g;
+    var b = l1 * A.b + l2 * B.b + l3 * C.b;
+    fill(r, g, b);
+  } else {
+    fill(200, 187, 168);
+  }
+  circle(p.x, p.y, 16); // 8px radius per spec
+
+  fill(200, 187, 168);
+  textSize(18);
+  textStyle(BOLD);
+  text('P', p.x + 16, p.y - 12);
+  textStyle(NORMAL);
+}
+
+function updatePanel(l1, l2, l3, inside) {
+  v1El.textContent = isFinite(l1) ? l1.toFixed(3) : '—';
+  v2El.textContent = isFinite(l2) ? l2.toFixed(3) : '—';
+  v3El.textContent = isFinite(l3) ? l3.toFixed(3) : '—';
+  v1El.className = 'val' + (isFinite(l1) && l1 < 0 ? ' neg' : '');
+  v2El.className = 'val' + (isFinite(l2) && l2 < 0 ? ' neg' : '');
+  v3El.className = 'val' + (isFinite(l3) && l3 < 0 ? ' neg' : '');
+
+  if (!isFinite(l1)) {
+    stEl.textContent = 'DEGENERATE';
+    stEl.className = 'status out';
+    rsEl.textContent = 'area(ABC) ≈ 0 — vertices are collinear';
+    return;
+  }
+
+  if (inside) {
+    stEl.textContent = 'INSIDE';
+    stEl.className = 'status in';
+    rsEl.innerHTML = '&nbsp;';
+  } else {
+    stEl.textContent = 'OUTSIDE';
+    stEl.className = 'status out';
+    var negs = [];
+    if (l1 < 0) negs.push('λ₁');
+    if (l2 < 0) negs.push('λ₂');
+    if (l3 < 0) negs.push('λ₃');
+    rsEl.textContent = negs.join(', ') + ' < 0';
+  }
+}
+
+/* ── Input handling ─────────────────────────────────────────── */
+function hitTest(mx, my) {
+  var items = [
+    { obj: P, p: px(P), bias: 2 },
+    { obj: A, p: px(A), bias: 0 },
+    { obj: B, p: px(B), bias: 0 },
+    { obj: C, p: px(C), bias: 0 },
+  ];
+  var best = null, bestD = 22 * 22;
+  for (var i = 0; i < items.length; i++) {
+    var dx = mx - items[i].p.x, dy = my - items[i].p.y;
+    var d2 = dx*dx + dy*dy - items[i].bias * items[i].bias;
+    if (d2 < bestD) { bestD = d2; best = items[i].obj; }
+  }
+  return best;
+}
+
+function getLocalXY(clientX, clientY) {
+  var rect = wrap.getBoundingClientRect();
+  return { x: clientX - rect.left, y: clientY - rect.top };
+}
+
+wrap.addEventListener('mousedown', function(e) {
+  var l = getLocalXY(e.clientX, e.clientY);
+  dragging = hitTest(l.x, l.y);
+  if (dragging) e.preventDefault();
+});
+window.addEventListener('mousemove', function(e) {
+  if (!dragging) return;
+  var l = getLocalXY(e.clientX, e.clientY);
+  dragging.nx = constrain(l.x / W, 0.02, 0.98);
+  dragging.ny = constrain(l.y / H, 0.04, 0.92);
+});
+window.addEventListener('mouseup', function() { dragging = null; });
+
+wrap.addEventListener('touchstart', function(e) {
+  if (e.touches.length === 0) return;
+  var l = getLocalXY(e.touches[0].clientX, e.touches[0].clientY);
+  dragging = hitTest(l.x, l.y);
+  if (dragging) e.preventDefault();
+}, { passive: false });
+wrap.addEventListener('touchmove', function(e) {
+  if (!dragging || e.touches.length === 0) return;
+  var l = getLocalXY(e.touches[0].clientX, e.touches[0].clientY);
+  dragging.nx = constrain(l.x / W, 0.02, 0.98);
+  dragging.ny = constrain(l.y / H, 0.04, 0.92);
+  e.preventDefault();
+}, { passive: false });
+wrap.addEventListener('touchend', function() { dragging = null; });
+wrap.addEventListener('touchcancel', function() { dragging = null; });
+</script>
+</body>
+</html>

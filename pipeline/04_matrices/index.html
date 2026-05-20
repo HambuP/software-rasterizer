@@ -1,0 +1,1458 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="A software 3D rasterizer built from scratch in C++ using SDL3 — barycentric interpolation, z-buffer, UV texturing, Phong lighting, shadow mapping and multithreading.">
+      
+      
+        <meta name="author" content="Santiago Forero">
+      
+      
+        <link rel="canonical" href="https://hambup.me/rasterizer/pipeline/04_matrices/">
+      
+      
+        <link rel="prev" href="../03_zbuffer/">
+      
+      
+        <link rel="next" href="../05_parser/">
+      
+      
+      <link rel="icon" href="../../assets/img/favicon.svg">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.23">
+    
+    
+      
+        <title>04 · Matrices & MVP - 3D Software Rasterizer</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.84d31ad4.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=DM+Sans:300,300i,400,400i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"DM Sans";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#44-matrices-the-mvp-pipeline" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="3D Software Rasterizer" class="md-header__button md-logo" aria-label="3D Software Rasterizer" data-md-component="logo">
+      
+  <img src="../../assets/img/favicon.svg" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            3D Software Rasterizer
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              04 · Matrices & MVP
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/HambuP/3D-Rasterizer-in-Cpp-using-SDL3" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    HambuP/3D-Rasterizer-in-Cpp-using-SDL3
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../01_framebuffer/" class="md-tabs__link">
+          
+  
+  
+  Pipeline
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../extras/bugs/" class="md-tabs__link">
+          
+  
+  
+  Extras
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="3D Software Rasterizer" class="md-nav__button md-logo" aria-label="3D Software Rasterizer" data-md-component="logo">
+      
+  <img src="../../assets/img/favicon.svg" alt="logo">
+
+    </a>
+    3D Software Rasterizer
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/HambuP/3D-Rasterizer-in-Cpp-using-SDL3" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    HambuP/3D-Rasterizer-in-Cpp-using-SDL3
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Home
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    Pipeline
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            Pipeline
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../01_framebuffer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    01 · Framebuffer
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../02_barycentric/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    02 · Barycentric Coords
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../03_zbuffer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    03 · Z-Buffer
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    04 · Matrices & MVP
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    04 · Matrices & MVP
+    
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-goal" class="md-nav__link">
+    <span class="md-ellipsis">
+      The goal
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#why-44-matrices" class="md-nav__link">
+    <span class="md-ellipsis">
+      Why 4×4 matrices
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#model-matrix-transforming-the-object" class="md-nav__link">
+    <span class="md-ellipsis">
+      Model matrix — transforming the object
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Model matrix — transforming the object">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#scale" class="md-nav__link">
+    <span class="md-ellipsis">
+      Scale
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#translation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Translation
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rotation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Rotation
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#putting-the-model-matrix-together" class="md-nav__link">
+    <span class="md-ellipsis">
+      Putting the model matrix together
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#view-matrix-camera-space" class="md-nav__link">
+    <span class="md-ellipsis">
+      View matrix — camera space
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#projection-matrix-perspective" class="md-nav__link">
+    <span class="md-ellipsis">
+      Projection matrix — perspective
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#perspective-divide-viewport-transform" class="md-nav__link">
+    <span class="md-ellipsis">
+      Perspective divide &amp; viewport transform
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#putting-it-all-together" class="md-nav__link">
+    <span class="md-ellipsis">
+      Putting it all together
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#bugs" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bugs
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#result" class="md-nav__link">
+    <span class="md-ellipsis">
+      Result
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../05_parser/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    05 · OBJ Parser
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../06_uv/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    06 · UV Texturing
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../07_culling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    07 · Culling & Threads
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../08_camera/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    08 · Camera
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../09_lighting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    09 · Phong & Toon
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../10_shadows/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    10 · Shadow Mapping
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Extras
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            Extras
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../extras/bugs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Bugs — Hall of Fame
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../extras/process/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Process & Research
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../extras/math_primer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Math Primer
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../extras/references/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    References
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-goal" class="md-nav__link">
+    <span class="md-ellipsis">
+      The goal
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#why-44-matrices" class="md-nav__link">
+    <span class="md-ellipsis">
+      Why 4×4 matrices
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#model-matrix-transforming-the-object" class="md-nav__link">
+    <span class="md-ellipsis">
+      Model matrix — transforming the object
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Model matrix — transforming the object">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#scale" class="md-nav__link">
+    <span class="md-ellipsis">
+      Scale
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#translation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Translation
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rotation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Rotation
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#putting-the-model-matrix-together" class="md-nav__link">
+    <span class="md-ellipsis">
+      Putting the model matrix together
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#view-matrix-camera-space" class="md-nav__link">
+    <span class="md-ellipsis">
+      View matrix — camera space
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#projection-matrix-perspective" class="md-nav__link">
+    <span class="md-ellipsis">
+      Projection matrix — perspective
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#perspective-divide-viewport-transform" class="md-nav__link">
+    <span class="md-ellipsis">
+      Perspective divide &amp; viewport transform
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#putting-it-all-together" class="md-nav__link">
+    <span class="md-ellipsis">
+      Putting it all together
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#bugs" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bugs
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#result" class="md-nav__link">
+    <span class="md-ellipsis">
+      Result
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="44-matrices-the-mvp-pipeline">4×4 Matrices &amp; the MVP Pipeline</h1>
+<p class="subtitle">The longest day of the project — the heart of everything that follows.</p>
+
+<div class="prereq-note">
+  <span class="prereq-icon">📐</span>
+  <span>Not familiar with vectors or matrices? <a href="../../extras/math_primer/">Read the Math Primer first</a> — it covers everything you need for this section.</span>
+</div>
+
+<hr />
+<h2 id="the-goal">The goal</h2>
+<p>Up to this point, triangles exist directly in screen coordinates. To render real 3D objects, vertices need to be transformed from 3D world space all the way to screen pixels. That journey requires three transformations chained together: <span class="accent-gold"><strong>Model</strong>, <strong>View</strong>, and <strong>Projection</strong></span> — the MVP pipeline.</p>
+<h2 id="why-44-matrices">Why 4×4 matrices</h2>
+<p>3D transformations like rotation and scale are <span class="accent-red"><strong>linear transformations</strong></span> — functions T where:</p>
+<div class="arithmatex">\[ T(\mathbf{u} + \mathbf{v}) = T(\mathbf{u}) + T(\mathbf{v}) \qquad T(\alpha\mathbf{u}) = \alpha T(\mathbf{u}) \]</div>
+<p>Linear transformations can be represented as matrix multiplications. But <strong>translation is not linear</strong> — if you translate a vector by t, you get v + t, and T(u + v) = u + v + t ≠ (u + t) + (v + t). It doesn't satisfy the first property. Even more tellingly: a linear transformation must map the origin to the origin, and translation obviously doesn't.</p>
+<p><span class="accent-red">So 3×3 matrices can't represent translation.</span> The solution is <span class="accent-gold"><strong>homogeneous coordinates</strong></span>: add a 4th component w to every vector. For points, <span class="accent-sage">w = 1</span>. For directions, <span class="accent-sage">w = 0</span>.</p>
+<div class="arithmatex">\[ \mathbf{v}_{3D} = \begin{pmatrix} x \\ y \\ z \end{pmatrix} \quad \rightarrow \quad \mathbf{v}_{4D} = \begin{pmatrix} x \\ y \\ z \\ 1 \end{pmatrix} \]</div>
+<p>With this extra dimension, translation can be encoded in the 4th column of a 4×4 matrix — and now every transformation, including translation, is a matrix multiplication. That's why 4×4.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1">// Matrix-matrix multiplication</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="n">Mat4</span><span class="w"> </span><span class="n">Mat4</span><span class="o">::</span><span class="k">operator</span><span class="o">*</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">Mat4</span><span class="o">&amp;</span><span class="w"> </span><span class="n">other</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span><span class="n">Mat4</span><span class="w"> </span><span class="n">result</span><span class="p">{};</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">4</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">j</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">j</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">4</span><span class="p">;</span><span class="w"> </span><span class="n">j</span><span class="o">++</span><span class="p">)</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">            </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">k</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">k</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">4</span><span class="p">;</span><span class="w"> </span><span class="n">k</span><span class="o">++</span><span class="p">)</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">                </span><span class="n">result</span><span class="p">.</span><span class="n">m</span><span class="p">[</span><span class="n">i</span><span class="o">*</span><span class="mi">4</span><span class="o">+</span><span class="n">j</span><span class="p">]</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">m</span><span class="p">[</span><span class="n">i</span><span class="o">*</span><span class="mi">4</span><span class="o">+</span><span class="n">k</span><span class="p">]</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">other</span><span class="p">.</span><span class="n">m</span><span class="p">[</span><span class="n">k</span><span class="o">*</span><span class="mi">4</span><span class="o">+</span><span class="n">j</span><span class="p">];</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">result</span><span class="p">;</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="p">}</span>
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="c1">// Matrix-vector multiplication</span>
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="n">Vec4</span><span class="w"> </span><span class="n">Mat4</span><span class="o">::</span><span class="k">operator</span><span class="o">*</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">Vec4</span><span class="o">&amp;</span><span class="w"> </span><span class="n">v</span><span class="p">)</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="w">        </span><span class="n">m</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">*</span><span class="n">v</span><span class="p">.</span><span class="n">x</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">m</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">*</span><span class="n">v</span><span class="p">.</span><span class="n">y</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">m</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">*</span><span class="n">v</span><span class="p">.</span><span class="n">z</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">m</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span><span class="o">*</span><span class="n">v</span><span class="p">.</span><span class="n">w</span><span class="p">,</span>
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="w">        </span><span class="n">m</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span><span class="o">*</span><span class="n">v</span><span class="p">.</span><span class="n">x</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">m</span><span class="p">[</span><span class="mi">5</span><span class="p">]</span><span class="o">*</span><span class="n">v</span><span class="p">.</span><span class="n">y</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">m</span><span class="p">[</span><span class="mi">6</span><span class="p">]</span><span class="o">*</span><span class="n">v</span><span class="p">.</span><span class="n">z</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">m</span><span class="p">[</span><span class="mi">7</span><span class="p">]</span><span class="o">*</span><span class="n">v</span><span class="p">.</span><span class="n">w</span><span class="p">,</span>
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a><span class="w">        </span><span class="n">m</span><span class="p">[</span><span class="mi">8</span><span class="p">]</span><span class="o">*</span><span class="n">v</span><span class="p">.</span><span class="n">x</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">m</span><span class="p">[</span><span class="mi">9</span><span class="p">]</span><span class="o">*</span><span class="n">v</span><span class="p">.</span><span class="n">y</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">m</span><span class="p">[</span><span class="mi">10</span><span class="p">]</span><span class="o">*</span><span class="n">v</span><span class="p">.</span><span class="n">z</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">m</span><span class="p">[</span><span class="mi">11</span><span class="p">]</span><span class="o">*</span><span class="n">v</span><span class="p">.</span><span class="n">w</span><span class="p">,</span>
+<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a><span class="w">        </span><span class="n">m</span><span class="p">[</span><span class="mi">12</span><span class="p">]</span><span class="o">*</span><span class="n">v</span><span class="p">.</span><span class="n">x</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">m</span><span class="p">[</span><span class="mi">13</span><span class="p">]</span><span class="o">*</span><span class="n">v</span><span class="p">.</span><span class="n">y</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">m</span><span class="p">[</span><span class="mi">14</span><span class="p">]</span><span class="o">*</span><span class="n">v</span><span class="p">.</span><span class="n">z</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">m</span><span class="p">[</span><span class="mi">15</span><span class="p">]</span><span class="o">*</span><span class="n">v</span><span class="p">.</span><span class="n">w</span>
+<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a><span class="w">    </span><span class="p">};</span>
+<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a><span class="p">}</span>
+</code></pre></div>
+<hr />
+<h2 id="model-matrix-transforming-the-object">Model matrix — transforming the object</h2>
+<p>The model matrix moves an object from its own local coordinate system into the <strong>world space</strong> — the shared coordinate system where all objects in the scene coexist. It's built by combining three individual transformations.</p>
+<h3 id="scale">Scale</h3>
+<p><span class="accent-gold">Scale</span> multiplies each coordinate by a factor. For uniform scale k, the basis vectors just get stretched:</p>
+<div class="arithmatex">\[ S = \begin{pmatrix} k &amp; 0 &amp; 0 &amp; 0 \\ 0 &amp; k &amp; 0 &amp; 0 \\ 0 &amp; 0 &amp; k &amp; 0 \\ 0 &amp; 0 &amp; 0 &amp; 1 \end{pmatrix} \]</div>
+<p>Multiplying a point (x, y, z, 1) by S gives (kx, ky, kz, 1). w stays 1.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kr">inline</span><span class="w"> </span><span class="n">Mat4</span><span class="w"> </span><span class="nf">scale_matrix</span><span class="p">(</span><span class="kt">float</span><span class="w"> </span><span class="n">k</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">k</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="w">  </span><span class="mi">0</span><span class="p">,</span><span class="n">k</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="w">  </span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="n">k</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="w">  </span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="w"> </span><span class="p">};</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="p">}</span>
+</code></pre></div>
+<h3 id="translation">Translation</h3>
+<p>Translation adds an offset to each coordinate. With homogeneous coordinates, it fits cleanly in the 4th column:</p>
+<div class="arithmatex">\[ T = \begin{pmatrix} 1 &amp; 0 &amp; 0 &amp; t_x \\ 0 &amp; 1 &amp; 0 &amp; t_y \\ 0 &amp; 0 &amp; 1 &amp; t_z \\ 0 &amp; 0 &amp; 0 &amp; 1 \end{pmatrix} \]</div>
+<p>Multiplying (x, y, z, 1) by T gives (x+tx, y+ty, z+tz, 1) — exactly the translation we want. This is why w = 1 for points: <span class="accent-sage">it activates the translation column</span>. For direction vectors (w = 0), translation is correctly ignored.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kr">inline</span><span class="w"> </span><span class="n">Mat4</span><span class="w"> </span><span class="nf">move_matrix</span><span class="p">(</span><span class="kt">float</span><span class="w"> </span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">y</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">z</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="n">x</span><span class="p">,</span><span class="w">  </span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="n">y</span><span class="p">,</span><span class="w">  </span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="n">z</span><span class="p">,</span><span class="w">  </span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">1</span><span class="w"> </span><span class="p">};</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="p">}</span>
+</code></pre></div>
+<h3 id="rotation">Rotation</h3>
+<p><span class="accent-gold">Rotation is where the geometry becomes interesting.</span> To build a rotation matrix, start with the 2D case: rotating the basis vector <strong>e₁ = (1, 0)</strong> by angle θ gives <strong>(cos θ, sin θ)</strong>. That's just the definition of cosine and sine on the unit circle. The rotated <strong>e₂ = (0, 1)</strong> gives <strong>(-sin θ, cos θ)</strong>.</p>
+<p>Those rotated basis vectors become the <span class="accent-red"><strong>columns</strong> of the rotation matrix</span>. The interactive demo below shows exactly this:</p>
+<div class="viz-wrapper">
+  <div class="viz-header">
+    <span class="viz-label">● Interactive</span>
+    <span class="viz-hint">drag θ to explore</span>
+  </div>
+  <iframe src="../../assets/viz/rotation_matrix.html" width="100%" height="380" frameborder="0"></iframe>
+</div>
+
+<p>A matrix is a compact way of expressing what happens to each component of a vector separately — all at once. The animation above shows exactly this: rotating a point by θ produces two equations:</p>
+<div class="arithmatex">\[ x' = x \cdot \cos\theta - y \cdot \sin\theta \qquad y' = x \cdot \sin\theta + y \cdot \cos\theta \]</div>
+<p>A matrix-vector multiplication works by dot-producting each row with the input vector. So if we pack those equations into rows:</p>
+<ul>
+<li><strong>Row 1</strong> = [cos θ, −sin θ, 0, 0] · [x, y, z, 1] = x·cos θ − y·sin θ = x' ✓</li>
+<li><strong>Row 2</strong> = [sin θ,  cos θ, 0, 0] · [x, y, z, 1] = x·sin θ + y·cos θ = y' ✓</li>
+<li><strong>Row 3</strong> = [0, 0, 1, 0] · [x, y, z, 1] = z (unchanged) ✓</li>
+</ul>
+<p>The matrix IS those equations — just packed into rows. For rotation around Z:</p>
+<div class="arithmatex">\[ R_z(\theta) = \begin{pmatrix} \cos\theta &amp; -\sin\theta &amp; 0 &amp; 0 \\ \sin\theta &amp; \cos\theta &amp; 0 &amp; 0 \\ 0 &amp; 0 &amp; 1 &amp; 0 \\ 0 &amp; 0 &amp; 0 &amp; 1 \end{pmatrix} \]</div>
+<p>The first column is where X ends up, the second is where Y ends up. Z stays untouched. The same logic applies to Rx (rotating in the YZ plane) and Ry (rotating in the XZ plane), each leaving their respective axis fixed. The full model rotation is Rz · Ry · Rx — applied right to left.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kr">inline</span><span class="w"> </span><span class="n">Mat4</span><span class="w"> </span><span class="nf">roty_matrix</span><span class="p">(</span><span class="kt">float</span><span class="w"> </span><span class="n">angle</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">         </span><span class="n">cosf</span><span class="p">(</span><span class="n">angle</span><span class="p">),</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">sinf</span><span class="p">(</span><span class="n">angle</span><span class="p">),</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">         </span><span class="mi">0</span><span class="p">,</span><span class="w">           </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">           </span><span class="mi">0</span><span class="p">,</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">        </span><span class="o">-</span><span class="n">sinf</span><span class="p">(</span><span class="n">angle</span><span class="p">),</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">cosf</span><span class="p">(</span><span class="n">angle</span><span class="p">),</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">         </span><span class="mi">0</span><span class="p">,</span><span class="w">           </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">           </span><span class="mi">1</span><span class="p">,</span>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">    </span><span class="p">};</span>
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="p">}</span>
+</code></pre></div>
+<h3 id="putting-the-model-matrix-together">Putting the model matrix together</h3>
+<p>Scale first, then rotate, then translate — <span class="accent-gold">order matters</span> because matrix multiplication is not commutative:</p>
+<div class="arithmatex">\[ M = T \cdot R_z \cdot R_y \cdot R_x \cdot S \]</div>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">const</span><span class="w"> </span><span class="n">Mat4</span><span class="w"> </span><span class="n">modelMatrix</span><span class="w"> </span><span class="o">=</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">    </span><span class="n">move_matrix</span><span class="p">(</span><span class="n">move</span><span class="p">.</span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="n">move</span><span class="p">.</span><span class="n">y</span><span class="p">,</span><span class="w"> </span><span class="n">move</span><span class="p">.</span><span class="n">z</span><span class="p">)</span><span class="w"> </span><span class="o">*</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span><span class="n">rotz_matrix</span><span class="p">(</span><span class="n">rotz</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">roty_matrix</span><span class="p">(</span><span class="n">roty</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">rotx_matrix</span><span class="p">(</span><span class="n">rotx</span><span class="p">)</span><span class="w"> </span><span class="o">*</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">    </span><span class="n">scale_matrix</span><span class="p">(</span><span class="n">scale</span><span class="p">);</span>
+</code></pre></div>
+<hr />
+<h2 id="view-matrix-camera-space">View matrix — camera space</h2>
+<p>The view matrix transforms the world so that <span class="accent-red">the camera sits at the origin, looking down the −Z axis</span>. <span class="accent-sage">Everything else moves — not the camera.</span> Why −Z? By OpenGL convention, the camera looks "into" the screen, which is the negative Z direction.</p>
+<div class="viz-wrapper">
+  <div class="viz-header">
+    <span class="viz-label">● Interactive</span>
+    <span class="viz-hint">toggle to see the transformation</span>
+  </div>
+  <iframe src="../../assets/viz/world_to_camera.html" width="100%" height="380" frameborder="0"></iframe>
+</div>
+
+<p>Imagine the camera is at (−5, 0, 0) looking at the origin. We want to know where the world origin ends up in camera space. To place the camera at (−5, 0, 0), we translated it by −5 along X. To undo that for any world point, we do the opposite: translate by +5. The world origin goes from (0, 0, 0) to (5, 0, 0) — 5 units in front of the camera, which makes sense.</p>
+<p>The pattern: whatever we did to place the camera in the world, we do the <span class="accent-red">opposite</span> to transform world points into camera space. And the matrix that does the opposite of another matrix is its <span class="accent-gold">inverse</span>.</p>
+<p>In practice, placing the camera in the world involves two steps: rotate it to face the right direction, then translate it to its position. So the full camera-to-world transform is T × R, and the view matrix is its inverse: <span class="accent-gold">(T × R)⁻¹</span>.</p>
+<p><strong>Step 1 — Compute the camera's three axes in world space.</strong></p>
+<p>Forward (where the camera looks):</p>
+<div class="arithmatex">\[ \mathbf{f} = \text{normalize}(\text{center} - \text{eye}) \]</div>
+<p>Right — perpendicular to forward. We use an artificial <span class="accent-sage">world up = (0, 1, 0)</span> as a reference, since we don't know the camera's up yet but we know the world's Y is "up":</p>
+<div class="arithmatex">\[ \mathbf{r} = \text{normalize}(\mathbf{f} \times \mathbf{up}_{world}) \]</div>
+<p>Camera's true up — perpendicular to both:</p>
+<div class="arithmatex">\[ \mathbf{u} = \mathbf{r} \times \mathbf{f} \]</div>
+<p><strong>Step 2 — Build the camera-to-world transform.</strong></p>
+<p>Placing the camera in the world takes two steps: rotate first, then translate to eye:</p>
+<div class="arithmatex">\[ M_{cam} = T_{eye} \times R_{cam} \]</div>
+<p>The translation matrix T simply puts the camera position in the 4th column:</p>
+<div class="arithmatex">\[ T_{eye} = \begin{pmatrix} 1 &amp; 0 &amp; 0 &amp; \text{eye}_x \\ 0 &amp; 1 &amp; 0 &amp; \text{eye}_y \\ 0 &amp; 0 &amp; 1 &amp; \text{eye}_z \\ 0 &amp; 0 &amp; 0 &amp; 1 \end{pmatrix} \]</div>
+<p>The rotation matrix R answers: <span class="accent-gold">where does each camera axis point in world space?</span></p>
+<p>The camera's X axis is the standard basis vector e₁ = (1, 0, 0). When you multiply a matrix R by e₁, the result is always the first column of R — because all other terms cancel out. So the first column of R directly controls where the camera's X axis ends up in the world. If we want it to point in direction <strong>r</strong>, we set the first column to <strong>r</strong>. The same logic applies to the camera's Y axis (e₂ → second column = <strong>u</strong>) and Z axis (e₃ → third column = <strong>f</strong>):</p>
+<div class="arithmatex">\[ R_{cam} = \begin{pmatrix} r_x &amp; u_x &amp; f_x &amp; 0 \\ r_y &amp; u_y &amp; f_y &amp; 0 \\ r_z &amp; u_z &amp; f_z &amp; 0 \\ 0 &amp; 0 &amp; 0 &amp; 1 \end{pmatrix} \]</div>
+<p><strong>Step 3 — Invert.</strong></p>
+<div class="arithmatex">\[ V = (T_{eye} \times R_{cam})^{-1} = R_{cam}^{-1} \times T_{eye}^{-1} \]</div>
+<p><span class="accent-red">T⁻¹</span> is straightforward: same matrix, but negate the translation (replace eye with −eye).</p>
+<p><span class="accent-red">R⁻¹</span> is elegant: since <strong>r</strong>, <strong>u</strong>, <strong>f</strong> are orthonormal (unit vectors, mutually perpendicular), R is orthogonal. For orthogonal matrices, <span class="accent-gold">the inverse equals the transpose</span> — rows and columns swap. The columns of R (which were <strong>r</strong>, <strong>u</strong>, <strong>f</strong>) become its rows.</p>
+<p>Multiplying R^T × T⁻¹ and combining gives the final view matrix:</p>
+<div class="arithmatex">\[ V = \begin{pmatrix} r_x &amp; r_y &amp; r_z &amp; -(\mathbf{r} \cdot \text{eye}) \\ u_x &amp; u_y &amp; u_z &amp; -(\mathbf{u} \cdot \text{eye}) \\ f_x &amp; f_y &amp; f_z &amp; -(\mathbf{f} \cdot \text{eye}) \\ 0 &amp; 0 &amp; 0 &amp; 1 \end{pmatrix} \]</div>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="kr">inline</span><span class="w"> </span><span class="n">Mat4</span><span class="w"> </span><span class="nf">lookAt_matrix</span><span class="p">(</span><span class="n">Vec3</span><span class="w"> </span><span class="n">eye</span><span class="p">,</span><span class="w"> </span><span class="n">Vec3</span><span class="w"> </span><span class="n">center</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">    </span><span class="n">Vec3</span><span class="w"> </span><span class="n">forward</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">center</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">eye</span><span class="p">).</span><span class="n">normalize</span><span class="p">();</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">    </span><span class="n">Vec3</span><span class="w"> </span><span class="n">right</span><span class="w">   </span><span class="o">=</span><span class="w"> </span><span class="n">forward</span><span class="p">.</span><span class="n">cross</span><span class="p">(</span><span class="n">temp_up</span><span class="p">).</span><span class="n">normalize</span><span class="p">();</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">    </span><span class="n">Vec3</span><span class="w"> </span><span class="n">up</span><span class="w">      </span><span class="o">=</span><span class="w"> </span><span class="n">right</span><span class="p">.</span><span class="n">cross</span><span class="p">(</span><span class="n">forward</span><span class="p">);</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="w">        </span><span class="n">right</span><span class="p">.</span><span class="n">x</span><span class="p">,</span><span class="w">   </span><span class="n">right</span><span class="p">.</span><span class="n">y</span><span class="p">,</span><span class="w">   </span><span class="n">right</span><span class="p">.</span><span class="n">z</span><span class="p">,</span><span class="w">   </span><span class="o">-</span><span class="p">(</span><span class="n">right</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">eye</span><span class="p">),</span>
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="w">        </span><span class="n">up</span><span class="p">.</span><span class="n">x</span><span class="p">,</span><span class="w">      </span><span class="n">up</span><span class="p">.</span><span class="n">y</span><span class="p">,</span><span class="w">      </span><span class="n">up</span><span class="p">.</span><span class="n">z</span><span class="p">,</span><span class="w">      </span><span class="o">-</span><span class="p">(</span><span class="n">up</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">eye</span><span class="p">),</span>
+<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="w">        </span><span class="n">forward</span><span class="p">.</span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="n">forward</span><span class="p">.</span><span class="n">y</span><span class="p">,</span><span class="w"> </span><span class="n">forward</span><span class="p">.</span><span class="n">z</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="p">(</span><span class="n">forward</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">eye</span><span class="p">),</span>
+<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="w">        </span><span class="mi">0</span><span class="p">,</span><span class="w">         </span><span class="mi">0</span><span class="p">,</span><span class="w">         </span><span class="mi">0</span><span class="p">,</span><span class="w">          </span><span class="mi">1</span>
+<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="w">    </span><span class="p">};</span>
+<a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a><span class="p">}</span>
+</code></pre></div>
+<hr />
+<h2 id="projection-matrix-perspective">Projection matrix — perspective</h2>
+<p>The projection matrix maps the camera's <span class="accent-red"><strong>frustum</strong></span> — the truncated pyramid of everything visible, bounded by a near plane and a far plane — into <span class="accent-gold"><strong>clip space</strong></span>. Clip space is an intermediate 4D space that keeps the original depth (w) intact before dividing by it. This is useful for clipping: a point is inside the view frustum if −w ≤ x ≤ w, −w ≤ y ≤ w, and −w ≤ z ≤ w — no division needed. After clipping, we divide by w to get <span class="accent-sage">NDC</span>.</p>
+<p><strong>How focal length relates to FOV.</strong> Before building the matrix, we need a way to scale points onto the image plane. The demo below shows the geometry:</p>
+<div class="viz-wrapper">
+  <div class="viz-header">
+    <span class="viz-label">● Interactive</span>
+    <span class="viz-hint">drag FOV to see how the image plane scales</span>
+  </div>
+  <iframe src="../../assets/viz/focal_length.html" width="100%" height="380" frameborder="0"></iframe>
+</div>
+
+<p><strong>Focal length from FOV.</strong> In the image plane, we want points to map to NDC y ∈ [-1, 1]. A point at depth z with height y projects to:</p>
+<div class="arithmatex">\[ y_{\text{proj}} = \frac{f \cdot y}{z} \]</div>
+<p>For this to land in [-1, 1], we want f to make the half-height of the frustum at distance f equal to 1. That gives:</p>
+<div class="arithmatex">\[ \tan\left(\frac{\text{FOV}}{2}\right) = \frac{1}{f} \quad \Rightarrow \quad f = \frac{1}{\tan(\text{FOV}/2)} \]</div>
+<p>X gets divided by the aspect ratio to correct for non-square screens.</p>
+<p><strong>Storing z in w.</strong> Matrix multiplication is a linear operation — it can only add and scale values. Dividing by z (which is what perspective requires) is non-linear: you can't express it as a matrix. The solution: store z in the w component using the <code>1</code> in position [3,2], so that after the multiplication w = z. Then we do the division manually — that's the perspective divide. The third row has two values left to determine, A and B:</p>
+<div class="arithmatex">\[ P = \begin{pmatrix} f/\text{aspect} &amp; 0 &amp; 0 &amp; 0 \\ 0 &amp; f &amp; 0 &amp; 0 \\ 0 &amp; 0 &amp; A &amp; B \\ 0 &amp; 0 &amp; 1 &amp; 0 \end{pmatrix} \]</div>
+<p>Multiplying this by a vertex (x, y, z, 1) gives clip space (fx/aspect, fy, Az+B, z). After dividing by w = z, the z component becomes:</p>
+<div class="arithmatex">\[ z_{\text{ndc}} = \frac{A \cdot z + B}{z} \]</div>
+<p>We want this to map near → −1 and far → +1:</p>
+<div class="arithmatex">\[ \frac{A \cdot \text{near} + B}{\text{near}} = -1 \quad \Rightarrow \quad A \cdot \text{near} + B = -\text{near} \quad (1) \]</div>
+<div class="arithmatex">\[ \frac{A \cdot \text{far} + B}{\text{far}} = +1 \quad \Rightarrow \quad A \cdot \text{far} + B = \text{far} \quad (2) \]</div>
+<p>Subtracting (1) from (2): A(far − near) = far + near, so:</p>
+<div class="arithmatex">\[ A = \frac{\text{near}+\text{far}}{\text{far}-\text{near}} \]</div>
+<p>Substituting back into (1):</p>
+<div class="arithmatex">\[ B = \frac{2 \cdot \text{near} \cdot \text{far}}{\text{near}-\text{far}} \]</div>
+<p>Replacing A and B, the full projection matrix is:</p>
+<div class="arithmatex">\[ P = \begin{pmatrix} f/\text{aspect} &amp; 0 &amp; 0 &amp; 0 \\ 0 &amp; f &amp; 0 &amp; 0 \\ 0 &amp; 0 &amp; \frac{n+f}{f-n} &amp; \frac{2nf}{n-f} \\ 0 &amp; 0 &amp; 1 &amp; 0 \end{pmatrix} \]</div>
+<p>The last row stores the original z into w — that's what makes the perspective divide work.</p>
+<div class="viz-wrapper">
+  <div class="viz-header">
+    <span class="viz-label">● Interactive</span>
+    <span class="viz-hint">step through how the frustum transforms into clip space</span>
+  </div>
+  <iframe src="../../assets/viz/projection_matrix.html" width="100%" height="580" frameborder="0"></iframe>
+</div>
+
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="kr">inline</span><span class="w"> </span><span class="n">Mat4</span><span class="w"> </span><span class="nf">projection_matrix</span><span class="p">(</span><span class="kt">float</span><span class="w"> </span><span class="n">fov</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">aspect</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">near</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">far</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">f</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">1.0f</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">tanf</span><span class="p">(</span><span class="n">radianes</span><span class="p">(</span><span class="n">fov</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mf">2.0f</span><span class="p">);</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">        </span><span class="n">f</span><span class="o">/</span><span class="n">aspect</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">  </span><span class="mi">0</span><span class="p">,</span><span class="w">                         </span><span class="mi">0</span><span class="p">,</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="w">        </span><span class="mi">0</span><span class="p">,</span><span class="w">        </span><span class="n">f</span><span class="p">,</span><span class="w">  </span><span class="mi">0</span><span class="p">,</span><span class="w">                         </span><span class="mi">0</span><span class="p">,</span>
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="w">        </span><span class="mi">0</span><span class="p">,</span><span class="w">        </span><span class="mi">0</span><span class="p">,</span><span class="w">  </span><span class="p">(</span><span class="n">near</span><span class="o">+</span><span class="n">far</span><span class="p">)</span><span class="o">/</span><span class="p">(</span><span class="n">far</span><span class="o">-</span><span class="n">near</span><span class="p">),</span><span class="w">     </span><span class="mi">2</span><span class="o">*</span><span class="p">(</span><span class="n">near</span><span class="o">*</span><span class="n">far</span><span class="p">)</span><span class="o">/</span><span class="p">(</span><span class="n">near</span><span class="o">-</span><span class="n">far</span><span class="p">),</span>
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="w">        </span><span class="mi">0</span><span class="p">,</span><span class="w">        </span><span class="mi">0</span><span class="p">,</span><span class="w">  </span><span class="mi">1</span><span class="p">,</span><span class="w">                         </span><span class="mi">0</span>
+<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="w">    </span><span class="p">};</span>
+<a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a><span class="p">}</span>
+</code></pre></div>
+<hr />
+<h2 id="perspective-divide-viewport-transform">Perspective divide &amp; viewport transform</h2>
+<p>After multiplying by MVP, each vertex is in <strong>clip space</strong> — a 4D vector (x, y, z, w) where w holds the original depth. Dividing everything by w gives <strong>NDC</strong> (Normalized Device Coordinates), where every visible point is in the cube [-1, 1]³:</p>
+<div class="arithmatex">\[ \text{NDC} = \left(\frac{x_c}{w_c},\; \frac{y_c}{w_c},\; \frac{z_c}{w_c}\right) \]</div>
+<p><span class="accent-red">This division is what produces perspective</span> — far objects have larger w, so dividing by it makes them appear smaller.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="n">Vec3</span><span class="w"> </span><span class="n">ndc</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="n">clip</span><span class="p">.</span><span class="n">x</span><span class="o">/</span><span class="n">clip</span><span class="p">.</span><span class="n">w</span><span class="p">,</span><span class="w"> </span><span class="n">clip</span><span class="p">.</span><span class="n">y</span><span class="o">/</span><span class="n">clip</span><span class="p">.</span><span class="n">w</span><span class="p">,</span><span class="w"> </span><span class="n">clip</span><span class="p">.</span><span class="n">z</span><span class="o">/</span><span class="n">clip</span><span class="p">.</span><span class="n">w</span><span class="p">};</span>
+</code></pre></div>
+<p>The viewport transform maps NDC to pixel coordinates. NDC x lives in [−1, 1]. <span class="accent-gold">Adding 1</span> shifts it to [0, 2]. Dividing by 2 gives [0, 1]. Multiplying by (W−1) gives [0, W−1] — exactly the screen pixel range. Y is flipped because <span class="accent-sage">NDC +Y is up but screen +Y is down</span>: we use (1 − ndc_y) instead of (1 + ndc_y) to flip the axis.</p>
+<div class="arithmatex">\[ \text{screen}_x = \frac{(1 + \text{ndc}_x)(W-1)}{2} \qquad \text{screen}_y = \frac{(1 - \text{ndc}_y)(H-1)}{2} \]</div>
+<div class="viz-wrapper">
+  <div class="viz-header">
+    <span class="viz-label">● Interactive</span>
+    <span class="viz-hint">see how NDC coordinates map to screen pixels</span>
+  </div>
+  <iframe src="../../assets/viz/viewport_transform.html" width="100%" height="380" frameborder="0"></iframe>
+</div>
+
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="n">Vec2</span><span class="w"> </span><span class="n">screen</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="w">    </span><span class="p">(</span><span class="mi">1</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">ndc</span><span class="p">.</span><span class="n">x</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="p">(</span><span class="n">WIDTH</span><span class="w">  </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">    </span><span class="p">(</span><span class="mi">1</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">ndc</span><span class="p">.</span><span class="n">y</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="p">(</span><span class="n">HEIGHT</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">2</span><span class="w">  </span><span class="c1">// Y flipped: NDC +Y is up, screen +Y is down</span>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="p">};</span>
+</code></pre></div>
+<hr />
+<h2 id="putting-it-all-together">Putting it all together</h2>
+<p>The MVP matrix chains all three transformations. Applied <span class="accent-gold">right to left</span> — scale and rotate first, then position in the world, then to camera space, then project:</p>
+<div class="arithmatex">\[ \text{MVP} = P \cdot V \cdot M \]</div>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="k">const</span><span class="w"> </span><span class="n">Mat4</span><span class="w"> </span><span class="n">MVP</span><span class="w"> </span><span class="o">=</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="w">    </span><span class="n">projection_matrix</span><span class="p">(</span><span class="n">fov</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">float</span><span class="p">)</span><span class="n">WIDTH</span><span class="o">/</span><span class="n">HEIGHT</span><span class="p">,</span><span class="w"> </span><span class="n">near</span><span class="p">,</span><span class="w"> </span><span class="n">far</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="w">     </span><span class="c1">// P</span>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="w">    </span><span class="n">lookAt_matrix</span><span class="p">(</span><span class="n">eye</span><span class="p">,</span><span class="w"> </span><span class="n">center</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="w">                                  </span><span class="c1">// V</span>
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="w">    </span><span class="n">move_matrix</span><span class="p">(</span><span class="n">move</span><span class="p">.</span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="n">move</span><span class="p">.</span><span class="n">y</span><span class="p">,</span><span class="w"> </span><span class="n">move</span><span class="p">.</span><span class="n">z</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="w">                        </span><span class="c1">// M: translate</span>
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="w">    </span><span class="n">rotz_matrix</span><span class="p">(</span><span class="n">rotz</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">roty_matrix</span><span class="p">(</span><span class="n">roty</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">rotx_matrix</span><span class="p">(</span><span class="n">rotx</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="c1">// M: rotate</span>
+<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="w">    </span><span class="n">scale_matrix</span><span class="p">(</span><span class="n">scale</span><span class="p">);</span><span class="w">                                          </span><span class="c1">// M: scale</span>
+<a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a>
+<a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a><span class="c1">// Every vertex goes through the full pipeline:</span>
+<a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a><span class="n">Vec4</span><span class="w"> </span><span class="n">clip</span><span class="w">   </span><span class="o">=</span><span class="w"> </span><span class="n">MVP</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">Vec4</span><span class="p">{</span><span class="n">ver</span><span class="p">.</span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="n">ver</span><span class="p">.</span><span class="n">y</span><span class="p">,</span><span class="w"> </span><span class="n">ver</span><span class="p">.</span><span class="n">z</span><span class="p">,</span><span class="w"> </span><span class="mf">1.0f</span><span class="p">};</span>
+<a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a><span class="n">Vec3</span><span class="w"> </span><span class="n">ndc</span><span class="w">    </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="n">clip</span><span class="p">.</span><span class="n">x</span><span class="o">/</span><span class="n">clip</span><span class="p">.</span><span class="n">w</span><span class="p">,</span><span class="w"> </span><span class="n">clip</span><span class="p">.</span><span class="n">y</span><span class="o">/</span><span class="n">clip</span><span class="p">.</span><span class="n">w</span><span class="p">,</span><span class="w"> </span><span class="n">clip</span><span class="p">.</span><span class="n">z</span><span class="o">/</span><span class="n">clip</span><span class="p">.</span><span class="n">w</span><span class="p">};</span>
+<a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a><span class="n">Vec2</span><span class="w"> </span><span class="n">screen</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{(</span><span class="mi">1</span><span class="o">+</span><span class="n">ndc</span><span class="p">.</span><span class="n">x</span><span class="p">)</span><span class="o">*</span><span class="p">(</span><span class="n">WIDTH</span><span class="mi">-1</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="mi">1</span><span class="o">-</span><span class="n">ndc</span><span class="p">.</span><span class="n">y</span><span class="p">)</span><span class="o">*</span><span class="p">(</span><span class="n">HEIGHT</span><span class="mi">-1</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span><span class="p">};</span>
+</code></pre></div>
+<p>In the rasterizer, this runs for every vertex of every triangle, every frame. The screen-space positions go into the bounding box and edge function tests from the previous sections — the pipeline connects directly to the pixel loop.</p>
+<hr />
+<h2 id="bugs">Bugs</h2>
+<div class="bug-card">
+  <div class="bug-header">
+    <span class="bug-tag">BUG</span>
+    <span class="bug-title">Cube moves in the direction it rotates — MVP applied in reverse</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-row">
+      <span class="bug-label">What happened</span>
+      <span>Moving the cube in Z sent it flying in the wrong direction depending on its rotation. Everything was distorted and unpredictable.</span>
+    </div>
+    <div class="bug-row">
+      <span class="bug-label">Cause</span>
+      <span>The MVP matrix was being applied in the wrong order — projection was the first transformation applied, not the last. Since matrix multiplication reads right to left, the code had it completely backwards.</span>
+    </div>
+    <div class="bug-row">
+      <span class="bug-label">Fix</span>
+      <span>Reverse the multiplication order: <code>P × V × M</code>. The vertex experiences scale, then rotation, then translation, then view, then projection — in that sequence.</span>
+    </div>
+  </div>
+</div>
+
+<div class="bug-card">
+  <div class="bug-header">
+    <span class="bug-tag">BUG</span>
+    <span class="bug-title">Epileptic cube — random color every frame, interior faces visible</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-row">
+      <span class="bug-label">What happened</span>
+      <span>The cube was flickering with completely random colors every frame, and the interior faces were visible through the exterior.</span>
+    </div>
+    <div class="bug-row">
+      <span class="bug-label">Cause</span>
+      <span>Two problems at once. First, a random color was being assigned per triangle per frame — no fixed color, just noise. Second, the z-buffer depth values had the wrong sign: <code>−w</code> was being stored instead of <code>+w</code>, so the depth test was inverted and back faces were drawing over front faces.</span>
+    </div>
+    <div class="bug-row">
+      <span class="bug-label">Fix</span>
+      <span>Assign a fixed color per face. Fix the sign of w in the depth value — store <code>+w</code> so the depth test correctly picks the nearest surface.</span>
+    </div>
+  </div>
+</div>
+
+<p><img alt="Epileptic cube" class="page-img" src="../../assets/img/bug_cube_epileptic.gif" /></p>
+<p class="img-caption">Random color per triangle per frame + no backface culling = chaos.</p>
+
+<div class="bug-card">
+  <div class="bug-header">
+    <span class="bug-tag">BUG</span>
+    <span class="bug-title">Abstract art — renderer not cleared between frames</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-row">
+      <span class="bug-label">What happened</span>
+      <span>Rotating and moving the cube produced a beautiful abstract painting — every frame's output was layered on top of the previous ones.</span>
+    </div>
+    <div class="bug-row">
+      <span class="bug-label">Cause</span>
+      <span>The framebuffer and z-buffer were being cleared each frame, but <code>SDL_RenderClear</code> was not being called. SDL's renderer kept the previous frame's content painted on screen underneath the new one.</span>
+    </div>
+    <div class="bug-row">
+      <span class="bug-label">Fix</span>
+      <span>Add <code>SDL_RenderClear(renderer)</code> at the start of every frame. One line.</span>
+    </div>
+  </div>
+</div>
+
+<p><img alt="Abstract art bug" class="page-img" src="../../assets/img/bug_cube_no_clear.gif" /></p>
+<p class="img-caption">Not clearing the renderer — every frame painted on top of the last.</p>
+
+<hr />
+<h2 id="result">Result</h2>
+<p><img alt="Cube rotating correctly" class="page-img" src="../../assets/img/result_cube_rotating.gif" /></p>
+<p class="img-caption">The cube fully colored and rotating — model, view, and projection all working together.</p>
+
+<p>With the MVP pipeline working, 3D objects can be positioned, oriented, and projected correctly onto the screen. The next step is loading real objects from files — the OBJ parser.</p>
+<div class="page-nav">
+  <a href="../03_zbuffer/" class="page-nav-btn prev">← Z-Buffer</a>
+  <a href="../05_parser/" class="page-nav-btn next">OBJ Parser →</a>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      <script id="__config" type="application/json">{"base": "../..", "features": ["navigation.tabs", "navigation.top", "navigation.sections", "content.code.copy", "toc.follow"], "search": "../../assets/javascripts/workers/search.973d3a69.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.f55a23d4.min.js"></script>
+      
+        <script src="../../javascripts/mathjax.js"></script>
+      
+        <script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+    
+  </body>
+</html>

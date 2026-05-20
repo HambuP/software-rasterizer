@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>World Space → Camera Space</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 100%; height: 100%; background: #0d0c0a; }
+#wrap { width: 100%; height: 100%; position: relative; background: #0d0c0a; overflow: hidden; cursor: grab; }
+#wrap:active { cursor: grabbing; }
+#ui { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; z-index: 2; }
+.btn { padding: 8px 18px; border-radius: 6px; border: 1px solid #3a3020; background: transparent; color: #7a6a55; font-size: 13px; font-family: monospace; cursor: pointer; transition: all .2s; }
+.btn.on { background: #c8894a; color: #0f0e0c; border-color: #c8894a; }
+#info { display: none; }
+#hint { position: absolute; top: 54px; left: 50%; transform: translateX(-50%); color: #4a3a2a; font-size: 12px; pointer-events: none; font-family: monospace; white-space: nowrap; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="ui">
+    <button class="btn on" id="bW">World Space</button>
+    <button class="btn"    id="bC">Camera Space</button>
+  </div>
+  <span id="hint">drag to orbit · scroll to zoom</span>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+
+var wrap = document.getElementById('wrap');
+var bW   = document.getElementById('bW');
+var bC   = document.getElementById('bC');
+
+/* ── renderer ─────────────────────────────────────────────── */
+var renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(wrap.offsetWidth, wrap.offsetHeight);
+renderer.setClearColor(0x0d0c0a);
+wrap.appendChild(renderer.domElement);
+
+var scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0x0d0c0a, 18, 40);
+
+var obs = new THREE.PerspectiveCamera(50, wrap.offsetWidth / wrap.offsetHeight, 0.1, 60);
+
+/* ── lights ───────────────────────────────────────────────── */
+scene.add(new THREE.AmbientLight(0xffffff, 0.3));
+var sun = new THREE.DirectionalLight(0xffd8a0, 1.0);
+sun.position.set(6, 9, 4);
+scene.add(sun);
+var fill = new THREE.DirectionalLight(0x334488, 0.35);
+fill.position.set(-5, 2, -5);
+scene.add(fill);
+
+/* ── virtual camera definition ────────────────────────────── */
+var vcEye = new THREE.Vector3(4.0, 3.0, 4.5);
+var vcTgt = new THREE.Vector3(0.0, 0.5, 0.0);
+var wcUp  = new THREE.Vector3(0, 1, 0);
+
+// Camera axes in world space
+var zc = vcEye.clone().sub(vcTgt).normalize();      // +Z camera (points AWAY from target)
+var xc = wcUp.clone().cross(zc).normalize();        // +X camera (right)
+var yc = zc.clone().cross(xc);                      // +Y camera (up)
+
+// View matrix: transforms world space → camera space
+var viewMat = new THREE.Matrix4().set(
+   xc.x,  xc.y,  xc.z, -xc.dot(vcEye),
+   yc.x,  yc.y,  yc.z, -yc.dot(vcEye),
+   zc.x,  zc.y,  zc.z, -zc.dot(vcEye),
+   0,     0,     0,     1
+);
+var identMat = new THREE.Matrix4();
+
+/* ── world group ──────────────────────────────────────────── */
+var wg = new THREE.Group();
+scene.add(wg);
+
+var O = new THREE.Vector3();
+
+function mkLine(from, to, col, opa) {
+  opa = (opa === undefined) ? 1 : opa;
+  var m = new THREE.LineBasicMaterial({ color: col, transparent: opa < 1, opacity: opa });
+  return new THREE.Line(new THREE.BufferGeometry().setFromPoints([from.clone(), to.clone()]), m);
+}
+
+function mkLabel(txt, pos, hexCol) {
+  var c2 = document.createElement('canvas');
+  c2.width = 128; c2.height = 56;
+  var ctx = c2.getContext('2d');
+  ctx.font = 'bold 32px monospace';
+  ctx.fillStyle = '#' + hexCol.toString(16).padStart(6, '0');
+  ctx.fillText(txt, 4, 40);
+  var sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c2), transparent: true }));
+  sp.position.copy(pos);
+  sp.scale.set(0.85, 0.4, 1);
+  return sp;
+}
+
+/* floor — world grid */
+var worldGrid = new THREE.GridHelper(22, 22, 0x231d16, 0x1a1510);
+worldGrid.material.transparent = true;
+worldGrid.material.opacity = 1;
+wg.add(worldGrid);
+
+/* world origin axes */
+wg.add(mkLine(O, new THREE.Vector3(2.8, 0,   0  ), 0xe05050));
+wg.add(mkLine(O, new THREE.Vector3(0,   2.8, 0  ), 0x50d050));
+wg.add(mkLine(O, new THREE.Vector3(0,   0,   2.8), 0x5080e0));
+wg.add(mkLabel('X', new THREE.Vector3(3.1, 0.12, 0   ), 0xe05050));
+wg.add(mkLabel('Y', new THREE.Vector3(0.12, 3.1, 0   ), 0x50d050));
+wg.add(mkLabel('Z', new THREE.Vector3(0.12, 0.12, 3.1), 0x5080e0));
+wg.add(new THREE.Mesh(
+  new THREE.SphereGeometry(0.09, 8, 8),
+  new THREE.MeshBasicMaterial({ color: 0xffffff })
+));
+
+/* scene cubes */
+var cubeData = [
+  { p: [-2.2, 0.5, -1.2], c: 0xc8894a },
+  { p: [ 1.5, 0.5, -2.0], c: 0x6aaa5a },
+  { p: [-1.0, 0.5,  1.8], c: 0x6888cc },
+  { p: [ 0.6, 0.7,  0.4], c: 0xcc6878 },
+];
+var boxGeo  = new THREE.BoxGeometry(1, 1, 1);
+var edgeGeo = new THREE.EdgesGeometry(boxGeo);
+for (var i = 0; i < cubeData.length; i++) {
+  var d = cubeData[i];
+  var cm = new THREE.Mesh(boxGeo, new THREE.MeshLambertMaterial({ color: d.c }));
+  cm.position.set(d.p[0], d.p[1], d.p[2]);
+  cm.add(new THREE.LineSegments(
+    edgeGeo,
+    new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.15 })
+  ));
+  wg.add(cm);
+}
+
+/* ── virtual camera (visual) ─────────────────────────────── */
+var vcVis = new THREE.Group();
+vcVis.position.copy(vcEye);
+
+/*
+  Build rotation manually.
+  matrix4.set() takes elements row by row.
+  We want the COLUMNS to be xc, yc, zc
+  → local +X = xc, local +Y = yc, local +Z = zc
+  → local −Z (camera's front) points toward the target ✓
+*/
+var rotMat = new THREE.Matrix4().set(
+  xc.x, yc.x, zc.x, 0,
+  xc.y, yc.y, zc.y, 0,
+  xc.z, yc.z, zc.z, 0,
+  0,    0,    0,    1
+);
+vcVis.quaternion.setFromRotationMatrix(rotMat);
+
+/* camera body */
+var vcBodyM = new THREE.MeshLambertMaterial({ color: 0xe8c080 });
+var vcBody  = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.38, 0.65), vcBodyM);
+vcVis.add(vcBody);
+
+/* lens — at local −Z (camera's front) */
+var vcLensM = new THREE.MeshLambertMaterial({ color: 0xaaaacc });
+var vcLens  = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.24, 12), vcLensM);
+vcLens.rotation.x = Math.PI / 2;
+vcLens.position.z = -0.42;       // local −Z = toward target ✓
+vcVis.add(vcLens);
+
+/* top knob */
+var vcKnobM = new THREE.MeshLambertMaterial({ color: 0xd4a855 });
+var vcKnob  = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.14, 0.18), vcKnobM);
+vcKnob.position.y = 0.26;
+vcVis.add(vcKnob);
+
+/* frustum — near and far planes at local −Z */
+var fn = 0.7, ff = 3.4, ah = 0.48, aw = 0.65;
+var fp = [
+  new THREE.Vector3(-aw*fn,-ah*fn,-fn), new THREE.Vector3( aw*fn,-ah*fn,-fn),
+  new THREE.Vector3( aw*fn, ah*fn,-fn), new THREE.Vector3(-aw*fn, ah*fn,-fn),
+  new THREE.Vector3(-aw*ff,-ah*ff,-ff), new THREE.Vector3( aw*ff,-ah*ff,-ff),
+  new THREE.Vector3( aw*ff, ah*ff,-ff), new THREE.Vector3(-aw*ff, ah*ff,-ff),
+];
+var fMat = new THREE.LineBasicMaterial({ color: 0xe8c080, transparent: true, opacity: 0.45 });
+var fEdges = [[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]];
+for (var fe = 0; fe < fEdges.length; fe++) {
+  vcVis.add(new THREE.Line(
+    new THREE.BufferGeometry().setFromPoints([fp[fEdges[fe][0]], fp[fEdges[fe][1]]]),
+    fMat
+  ));
+}
+
+/* local camera axes (Xc, Yc, −Z) */
+var vcAxes = new THREE.Group();
+var aL = 1.0;
+vcAxes.add(mkLine(O, new THREE.Vector3( aL,  0,  0  ), 0xff5555));
+vcAxes.add(mkLine(O, new THREE.Vector3(  0, aL,  0  ), 0x55ee55));
+vcAxes.add(mkLine(O, new THREE.Vector3(  0,  0, -aL ), 0x5599ff));
+vcAxes.add(mkLabel('Xc', new THREE.Vector3( aL+0.35, 0.10,    0    ), 0xff5555));
+vcAxes.add(mkLabel('Yc', new THREE.Vector3( 0.10,    aL+0.35, 0    ), 0x55ee55));
+vcAxes.add(mkLabel('−Z', new THREE.Vector3( 0.10,    0.10,  -aL-0.50), 0x5599ff));
+vcVis.add(vcAxes);
+
+/*
+  Camera-space grid — lives inside vcVis (on its local XZ plane).
+  In world space: tilted (world's xc-zc plane, passing through vcEye).
+  In camera space: vcVis sits at origin with its axes aligned to the
+  standard system → the grid is FLAT and centered at the origin. ✓
+*/
+var camGrid = new THREE.GridHelper(10, 10, 0x3355aa, 0x1e2e55);
+camGrid.material.transparent = true;
+camGrid.material.opacity = 0.0;   // invisible at start
+vcVis.add(camGrid);
+
+wg.add(vcVis);
+
+/* ── observer orbit ───────────────────────────────────────── */
+var theta = 0.78, phi = 0.42, oR = 13;
+var drag = false, mx = 0, my = 0;
+var lookAtY = 1.0, lookAtZ = 0.0;
+
+function updateObs() {
+  obs.position.set(
+    oR * Math.cos(phi) * Math.sin(theta),
+    oR * Math.sin(phi),
+    oR * Math.cos(phi) * Math.cos(theta)
+  );
+  obs.lookAt(0, lookAtY, lookAtZ);
+  obs.updateProjectionMatrix();
+}
+updateObs();
+
+wrap.addEventListener('mousedown',  function(e){ drag=true; mx=e.clientX; my=e.clientY; });
+window.addEventListener('mouseup',  function(){ drag=false; });
+wrap.addEventListener('mousemove',  function(e){
+  if (!drag) return;
+  theta -= (e.clientX-mx)*0.006;
+  phi = Math.max(-0.15, Math.min(1.25, phi-(e.clientY-my)*0.006));
+  mx=e.clientX; my=e.clientY;
+});
+wrap.addEventListener('wheel', function(e){
+  oR = Math.max(6, Math.min(22, oR+e.deltaY*0.015));
+  e.preventDefault();
+}, { passive: false });
+
+/* ── state & transition ───────────────────────────────────── */
+var curT = 0, tgtT = 0;
+
+function ease(t) { return t < 0.5 ? 2*t*t : -1+(4-2*t)*t; }
+
+function lerpMat(m1, m2, t) {
+  var p1=new THREE.Vector3(), q1=new THREE.Quaternion(), s1=new THREE.Vector3();
+  var p2=new THREE.Vector3(), q2=new THREE.Quaternion(), s2=new THREE.Vector3();
+  m1.decompose(p1,q1,s1);
+  m2.decompose(p2,q2,s2);
+  return new THREE.Matrix4().compose(
+    new THREE.Vector3().lerpVectors(p1,p2,t),
+    new THREE.Quaternion().copy(q1).slerp(q2,t),
+    new THREE.Vector3().lerpVectors(s1,s2,t)
+  );
+}
+
+function toState(s) {
+  tgtT = s;
+  bW.className = 'btn' + (s===0 ? ' on' : '');
+  bC.className = 'btn' + (s===1 ? ' on' : '');
+}
+
+bW.addEventListener('click', function(){ toState(0); });
+bC.addEventListener('click', function(){ toState(1); });
+toState(0);
+
+/* ── animation loop ───────────────────────────────────────── */
+var clock = new THREE.Clock();
+
+function animate() {
+  requestAnimationFrame(animate);
+  var dt  = clock.getDelta();
+
+  curT += (tgtT-curT) * Math.min(dt*2.2, 1);
+  var et = ease(Math.max(0, Math.min(1, curT)));
+
+  /* apply viewMat to world group */
+  var m  = lerpMat(identMat, viewMat, et);
+  var tp = new THREE.Vector3(), tq = new THREE.Quaternion(), ts = new THREE.Vector3();
+  m.decompose(tp, tq, ts);
+  wg.position.copy(tp);
+  wg.quaternion.copy(tq);
+  wg.scale.copy(ts);
+
+  /* slightly shift the look-at point during the transition */
+  lookAtY = 1.0 - et*0.5;
+  lookAtZ = -et*2.0;
+
+  /* world grid fades out */
+  worldGrid.material.opacity = 1.0 - et*0.7;
+
+  /* camera grid fades in */
+  camGrid.material.opacity = et*0.65;
+
+  /* camera body fades out → becomes the origin */
+  var fa = 1-et;
+  vcBodyM.transparent=true; vcBodyM.opacity=fa;
+  vcLensM.transparent=true; vcLensM.opacity=fa;
+  vcKnobM.transparent=true; vcKnobM.opacity=fa;
+  vcBody.visible = fa>0.01;
+  vcLens.visible = fa>0.01;
+  vcKnob.visible = fa>0.01;
+
+  /* camera axes grow as they become the reference frame */
+  var sc = 1+et*2.2;
+  vcAxes.scale.set(sc, sc, sc);
+
+  updateObs();
+  renderer.render(scene, obs);
+}
+animate();
+
+window.addEventListener('resize', function(){
+  var w=wrap.offsetWidth, h=wrap.offsetHeight;
+  renderer.setSize(w,h);
+  obs.aspect=w/h;
+  obs.updateProjectionMatrix();
+});
+
+</script>
+</body>
+</html>

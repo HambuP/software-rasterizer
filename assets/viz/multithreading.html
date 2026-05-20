@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Multithreaded Rasterization</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 100%; height: 100%; background: #0d0c0a; overflow: hidden; font-family: monospace; }
+
+#wrap { width: 100%; height: 100%; display: flex; flex-direction: column; background: #0d0c0a; }
+
+#scene-area {
+  flex: 1; position: relative; min-height: 0;
+}
+canvas { display: block; }
+
+#hud {
+  display: flex;
+  height: 78px;
+  border-top: 1px solid #1e1a14;
+  background: #12110e;
+}
+
+.slider-block {
+  flex: 1;
+  padding: 18px 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 14px;
+  color: #c8bba8;
+}
+.slider-block:first-child {
+  border-right: 1px solid #1e1a14;
+}
+.slider-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+.slider-label { font-weight: bold; }
+.slider-val {
+  color: #d4a855;
+  font-variant-numeric: tabular-nums;
+}
+.slider-block input[type="range"] {
+  width: 100%;
+  accent-color: #c8894a;
+  cursor: pointer;
+}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="scene-area">
+    <canvas id="canvas"></canvas>
+  </div>
+  <div id="hud">
+    <div class="slider-block">
+      <div class="slider-header">
+        <span class="slider-label">threads</span>
+        <span class="slider-val" id="ntVal">4</span>
+      </div>
+      <input type="range" id="ntSlider" min="1" max="12" step="1" value="4">
+    </div>
+    <div class="slider-block">
+      <div class="slider-header">
+        <span class="slider-label">speed (rows/sec)</span>
+        <span class="slider-val" id="spVal">10</span>
+      </div>
+      <input type="range" id="spSlider" min="1" max="40" step="1" value="10">
+    </div>
+  </div>
+</div>
+<script>
+const canvas    = document.getElementById('canvas');
+const ctx       = canvas.getContext('2d');
+const sceneArea = document.getElementById('scene-area');
+const $         = id => document.getElementById(id);
+
+const ROWS = 36;
+const COLS = 56;
+
+let nThreads = 4;
+let speed    = 10;
+
+// Triangles in grid coordinates (x_col, y_row)
+const triangles = [
+  { v: [[6, 3],  [44, 6],  [20, 23]], color: '#c8894a' },
+  { v: [[8, 22], [28, 33], [4, 34]],  color: '#4ad4d4' },
+  { v: [[32, 13],[52, 19], [40, 32]], color: '#90c850' },
+];
+
+// One color per thread (rotates around hue wheel)
+const threadColors = [
+  '#c8894a', '#5da6e0', '#7ec860', '#e070a0',
+  '#e0c060', '#60c0c8', '#a070e0', '#e07060',
+  '#a0c050', '#60b0e8', '#d860d8', '#c89060'
+];
+
+const framebuffer = Array.from({ length: ROWS }, () => new Array(COLS).fill(null));
+
+let ranges       = [];   // [{ start, end, threadId }, ...]
+let threadState  = [];   // [{ threadId, start, end, currentRow, done }, ...]
+let cssW = 0, cssH = 0;
+let accumRows = 0;
+let lastTime = 0;
+let pendingRestart = null;
+
+/* ── Work distribution: even chunks + remainder to last ─ */
+function computeRanges() {
+  const perThread = Math.floor(ROWS / nThreads);
+  const remainder = ROWS % nThreads;
+  ranges = [];
+  let start = 0;
+  for (let i = 0; i < nThreads; i++) {
+    const isLast = (i === nThreads - 1);
+    const count = isLast ? perThread + remainder : perThread;
+    ranges.push({ start, end: start + count, threadId: i });
+    start += count;
+  }
+}
+
+/* ── Edge-function rasterizer ───────────────────────── */
+function edgeFn(ax, ay, bx, by, cx, cy) {
+  return (cx - ax) * (by - ay) - (cy - ay) * (bx - ax);
+}
+
+function rasterizeRow(row) {
+  for (const tri of triangles) {
+    const [[ax, ay], [bx, by], [cx, cy]] = tri.v;
+    for (let x = 0; x < COLS; x++) {
+      const px = x + 0.5, py = row + 0.5;
+      const w0 = edgeFn(bx, by, cx, cy, px, py);
+      const w1 = edgeFn(cx, cy, ax, ay, px, py);
+      const w2 = edgeFn(ax, ay, bx, by, px, py);
+      if ((w0 >= 0 && w1 >= 0 && w2 >= 0) || (w0 <= 0 && w1 <= 0 && w2 <= 0)) {
+        framebuffer[row][x] = tri.color;
+      }
+    }
+  }
+}
+
+function reset() {
+  for (const row of framebuffer) row.fill(null);
+  computeRanges();
+  threadState = ranges.map(r => ({
+    threadId: r.threadId,
+    start: r.start,
+    end: r.end,
+    currentRow: r.start,
+    done: false
+  }));
+  accumRows = 0;
+  if (pendingRestart) {
+    clearTimeout(pendingRestart);
+    pendingRestart = null;
+  }
+}
+
+function resize() {
+  const dpr = Math.min(devicePixelRatio, 2);
+  cssW = sceneArea.offsetWidth;
+  cssH = sceneArea.offsetHeight;
+  canvas.width  = cssW * dpr;
+  canvas.height = cssH * dpr;
+  canvas.style.width  = cssW + 'px';
+  canvas.style.height = cssH + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+
+function draw() {
+  ctx.fillStyle = '#0d0c0a';
+  ctx.fillRect(0, 0, cssW, cssH);
+
+  const blockW = cssW / COLS;
+  const blockH = cssH / ROWS;
+
+  // Band background tints
+  for (const r of ranges) {
+    const color = threadColors[r.threadId % threadColors.length];
+    ctx.fillStyle = color + '20';   // ~12% alpha
+    ctx.fillRect(0, r.start * blockH, cssW, (r.end - r.start) * blockH);
+  }
+
+  // Filled pixels
+  for (let y = 0; y < ROWS; y++) {
+    for (let x = 0; x < COLS; x++) {
+      if (framebuffer[y][x]) {
+        ctx.fillStyle = framebuffer[y][x];
+        ctx.fillRect(x * blockW, y * blockH, blockW + 0.5, blockH + 0.5);
+      }
+    }
+  }
+
+  // Band separator lines
+  ctx.strokeStyle = '#2a2520';
+  ctx.lineWidth = 1;
+  for (const r of ranges) {
+    if (r.start === 0) continue;
+    ctx.beginPath();
+    ctx.moveTo(0, r.start * blockH);
+    ctx.lineTo(cssW, r.start * blockH);
+    ctx.stroke();
+  }
+
+  // Active scanline for each working thread
+  for (const state of threadState) {
+    if (state.done) continue;
+    const color = threadColors[state.threadId % threadColors.length];
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(0, state.currentRow * blockH, cssW, blockH);
+  }
+
+  // Thread labels on the left edge
+  ctx.font = 'bold 13px monospace';
+  ctx.textBaseline = 'middle';
+  for (const r of ranges) {
+    const cy = (r.start + r.end) / 2 * blockH;
+    const color = threadColors[r.threadId % threadColors.length];
+    ctx.fillStyle = color;
+    ctx.fillText(`T${r.threadId}`, 8, cy);
+  }
+}
+
+function tick(now) {
+  if (!lastTime) lastTime = now;
+  const dt = (now - lastTime) / 1000;
+  lastTime = now;
+
+  accumRows += speed * dt;
+
+  let safety = 200;
+  while (accumRows >= 1 && safety-- > 0) {
+    accumRows -= 1;
+    for (const state of threadState) {
+      if (state.done) continue;
+      rasterizeRow(state.currentRow);
+      state.currentRow++;
+      if (state.currentRow >= state.end) state.done = true;
+    }
+  }
+
+  draw();
+
+  if (threadState.every(s => s.done) && !pendingRestart) {
+    pendingRestart = setTimeout(() => {
+      reset();
+      lastTime = 0;
+    }, 1800);
+  }
+
+  requestAnimationFrame(tick);
+}
+
+/* ── Init ───────────────────────────────────────────── */
+resize();
+reset();
+requestAnimationFrame(tick);
+
+/* ── Sliders ────────────────────────────────────────── */
+$('ntSlider').addEventListener('input', e => {
+  nThreads = parseInt(e.target.value);
+  $('ntVal').textContent = nThreads;
+  reset();
+});
+$('spSlider').addEventListener('input', e => {
+  speed = parseInt(e.target.value);
+  $('spVal').textContent = speed;
+});
+
+window.addEventListener('resize', () => { resize(); draw(); });
+</script>
+</body>
+</html>

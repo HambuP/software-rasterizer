@@ -1,0 +1,1203 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="A software 3D rasterizer built from scratch in C++ using SDL3 — barycentric interpolation, z-buffer, UV texturing, Phong lighting, shadow mapping and multithreading.">
+      
+      
+        <meta name="author" content="Santiago Forero">
+      
+      
+        <link rel="canonical" href="https://hambup.me/rasterizer/extras/bugs/">
+      
+      
+        <link rel="prev" href="../../pipeline/10_shadows/">
+      
+      
+        <link rel="next" href="../process/">
+      
+      
+      <link rel="icon" href="../../assets/img/favicon.svg">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.23">
+    
+    
+      
+        <title>Bugs — Hall of Fame - 3D Software Rasterizer</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.84d31ad4.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=DM+Sans:300,300i,400,400i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"DM Sans";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#bugs-hall-of-fame" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="3D Software Rasterizer" class="md-header__button md-logo" aria-label="3D Software Rasterizer" data-md-component="logo">
+      
+  <img src="../../assets/img/favicon.svg" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            3D Software Rasterizer
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Bugs — Hall of Fame
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/HambuP/3D-Rasterizer-in-Cpp-using-SDL3" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    HambuP/3D-Rasterizer-in-Cpp-using-SDL3
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../pipeline/01_framebuffer/" class="md-tabs__link">
+          
+  
+  
+  Pipeline
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="./" class="md-tabs__link">
+          
+  
+  
+  Extras
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="3D Software Rasterizer" class="md-nav__button md-logo" aria-label="3D Software Rasterizer" data-md-component="logo">
+      
+  <img src="../../assets/img/favicon.svg" alt="logo">
+
+    </a>
+    3D Software Rasterizer
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/HambuP/3D-Rasterizer-in-Cpp-using-SDL3" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    HambuP/3D-Rasterizer-in-Cpp-using-SDL3
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Home
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Pipeline
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            Pipeline
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/01_framebuffer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    01 · Framebuffer
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/02_barycentric/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    02 · Barycentric Coords
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/03_zbuffer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    03 · Z-Buffer
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/04_matrices/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    04 · Matrices & MVP
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/05_parser/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    05 · OBJ Parser
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/06_uv/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    06 · UV Texturing
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/07_culling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    07 · Culling & Threads
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/08_camera/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    08 · Camera
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/09_lighting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    09 · Phong & Toon
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pipeline/10_shadows/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    10 · Shadow Mapping
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    Extras
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            Extras
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    Bugs — Hall of Fame
+    
+  </span>
+  
+
+      </a>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../process/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Process & Research
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../math_primer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Math Primer
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../references/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    References
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="bugs-hall-of-fame">Bugs — Hall of Fame</h1>
+<p class="subtitle">Every bug that cost more than 30 minutes, taught something, or was just absurd enough to remember.</p>
+
+<hr />
+<div class="bug-card">
+  <div class="bug-header">
+    <span class="bug-tag">01</span>
+    <span class="bug-title">30 seconds to draw a single triangle</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-row">
+      <span class="bug-label">What happened</span>
+      <span>The window loaded but took literally 30 seconds to draw one triangle, nearly crashing every frame.</span>
+    </div>
+    <div class="bug-row">
+      <span class="bug-label">Cause</span>
+      <span>Two problems. First, <code>SDL_UpdateTexture</code> was being called inside the per-pixel loop — uploading the full texture to the GPU on every single pixel write. Second, the framebuffer was being passed by value, so the entire array was copied every frame.</span>
+    </div>
+    <div class="bug-row">
+      <span class="bug-label">Fix</span>
+      <span>Move <code>SDL_UpdateTexture</code> outside the pixel loop. Add a single <code>&</code> to pass the framebuffer by reference. One character fix for the second one.</span>
+    </div>
+  </div>
+</div>
+
+<div class="bug-card">
+  <div class="bug-header">
+    <span class="bug-tag">02</span>
+    <span class="bug-title">Z-buffer working but completely wrong — barycentric assigned backwards</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-row">
+      <span class="bug-label">What happened</span>
+      <span>Two intersecting triangles with depth — the z-buffer was active but behaved unpredictably, ignoring actual depth values.</span>
+    </div>
+    <div class="bug-row">
+      <span class="bug-label">Cause</span>
+      <span>When interpolating, the edge function for edge AB was being multiplied by the depth of A — but the edge function for AB represents the area of the sub-triangle opposite to C. It should be multiplied by C's depth.</span>
+    </div>
+    <div class="bug-row">
+      <span class="bug-label">Fix</span>
+      <span>Each edge function value maps to the vertex it's <em>opposite</em> to, not the one it's named after.</span>
+    </div>
+  </div>
+</div>
+
+<div class="bug-card">
+  <div class="bug-header">
+    <span class="bug-tag">03</span>
+    <span class="bug-title">Moving the cube in Z sends it flying in the rotation direction</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-row">
+      <span class="bug-label">What happened</span>
+      <span>Translating the cube along Z would send it in a completely wrong direction depending on its current rotation.</span>
+    </div>
+    <div class="bug-row">
+      <span class="bug-label">Cause</span>
+      <span>The MVP matrix was assembled in the wrong order. The projection matrix was being applied first instead of last.</span>
+    </div>
+    <div class="bug-row">
+      <span class="bug-label">Fix</span>
+      <span>Reverse the multiplication order: Projection × View × Model.</span>
+    </div>
+  </div>
+</div>
+
+<div class="bug-card">
+  <div class="bug-header">
+    <span class="bug-tag">04</span>
+    <span class="bug-title">Only one face of the cube renders — a missing zero</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-row">
+      <span class="bug-label">What happened</span>
+      <span>After fixing the MVP, only a single face of the cube appeared. The pipeline seemed correct.</span>
+    </div>
+    <div class="bug-row">
+      <span class="bug-label">Cause</span>
+      <span>The rotation X matrix in <code>math.hpp</code> had only 15 elements — a single missing <code>0</code>.</span>
+    </div>
+    <div class="bug-row">
+      <span class="bug-label">Fix</span>
+      <span>Add the zero. 30 minutes hunting for a typo.</span>
+    </div>
+  </div>
+</div>
+
+<div class="bug-card">
+  <div class="bug-header">
+    <span class="bug-tag">05</span>
+    <span class="bug-title">Back faces draw on top of front faces — z-buffer inverted</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-row">
+      <span class="bug-label">What happened</span>
+      <span>Rotating the cube revealed that back faces were always drawn on top of front faces.</span>
+    </div>
+    <div class="bug-row">
+      <span class="bug-label">Cause</span>
+      <span>The z-buffer was reading <code>-w</code> instead of <code>+w</code>, inverting all depth comparisons.</span>
+    </div>
+    <div class="bug-row">
+      <span class="bug-label">Fix</span>
+      <span>Negate the sign: store <code>+w</code> so closer objects have smaller depth values.</span>
+    </div>
+  </div>
+</div>
+
+<div class="bug-card">
+  <div class="bug-header">
+    <span class="bug-tag">06</span>
+    <span class="bug-title">Abstract art — renderer not cleared between frames</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-row">
+      <span class="bug-label">What happened</span>
+      <span>Rotating and moving the cube produced a layered painting — every previous frame stayed on screen.</span>
+    </div>
+    <div class="bug-row">
+      <span class="bug-label">Cause</span>
+      <span>The framebuffer and z-buffer were cleared each frame, but <code>SDL_RenderClear</code> was never called. SDL kept the previous frame underneath.</span>
+    </div>
+    <div class="bug-row">
+      <span class="bug-label">Fix</span>
+      <span>Add <code>SDL_RenderClear(renderer)</code> at the start of every frame.</span>
+    </div>
+  </div>
+</div>
+
+<div class="bug-card">
+  <div class="bug-header">
+    <span class="bug-tag">07</span>
+    <span class="bug-title">Black window — working directory, missing push_backs, wrong filenames</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-row">
+      <span class="bug-label">What happened</span>
+      <span>After implementing the OBJ parser, nothing appeared on screen.</span>
+    </div>
+    <div class="bug-row">
+      <span class="bug-label">Cause</span>
+      <span>Several problems stacked: wrong working directory, the MTL path being reset on every line read, filenames using <code>\\</code> instead of <code>/</code> and <code>.jpg</code> instead of <code>.bmp</code>, and faces never being appended to the mesh list.</span>
+    </div>
+    <div class="bug-row">
+      <span class="bug-label">Fix</span>
+      <span>Print statements everywhere to locate each error one by one.</span>
+    </div>
+  </div>
+</div>
+
+<div class="bug-card">
+  <div class="bug-header">
+    <span class="bug-tag">08</span>
+    <span class="bug-title">OBJ indices start at 1, C++ vectors start at 0</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-row">
+      <span class="bug-label">What happened</span>
+      <span>The mesh loaded but the geometry was completely destroyed — vertices in the wrong positions, faces twisted.</span>
+    </div>
+    <div class="bug-row">
+      <span class="bug-label">Cause</span>
+      <span>OBJ files use 1-based indices. Accessing <code>vertices[index]</code> without subtracting 1 reads the wrong vertex every time.</span>
+    </div>
+    <div class="bug-row">
+      <span class="bug-label">Fix</span>
+      <span><code>vertices[index - 1]</code>.</span>
+    </div>
+  </div>
+</div>
+
+<div class="bug-card">
+  <div class="bug-header">
+    <span class="bug-tag">09</span>
+    <span class="bug-title">Back faces on top again — the w sign flip that worked, then didn't</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-row">
+      <span class="bug-label">What happened</span>
+      <span>Same symptom as bug #05 — back faces drawing on top — but this time with a real OBJ file.</span>
+    </div>
+    <div class="bug-row">
+      <span class="bug-label">Cause</span>
+      <span>The <code>-w</code> fix from bug #05 had only worked for the manually-constructed cube. Real OBJ files have different conventions, so negating w broke it again.</span>
+    </div>
+    <div class="bug-row">
+      <span class="bug-label">Fix</span>
+      <span>Revert from <code>-1</code> to <code>+1</code>. The previous fix was masking the real problem.</span>
+    </div>
+  </div>
+</div>
+
+<div class="bug-card">
+  <div class="bug-header">
+    <span class="bug-tag">10</span>
+    <span class="bug-title">UV texture distortion — linear interpolation in screen space</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-row">
+      <span class="bug-label">What happened</span>
+      <span>The cube faces showed correct textures, but they warped and stretched as the cube rotated.</span>
+    </div>
+    <div class="bug-row">
+      <span class="bug-label">Cause</span>
+      <span>UV coordinates were being interpolated linearly in screen space, which ignores depth. A vertex at depth 10 and one at depth 1 are treated the same.</span>
+    </div>
+    <div class="bug-row">
+      <span class="bug-label">Fix</span>
+      <span>Perspective-correct interpolation: interpolate <code>UV/w</code> and <code>1/w</code> separately, then divide. Since <code>1/w</code> is linear in screen space, this corrects for depth.</span>
+    </div>
+  </div>
+</div>
+
+<div class="bug-card">
+  <div class="bug-header">
+    <span class="bug-tag">11</span>
+    <span class="bug-title">Crash when loading a detailed model — texture copied every frame</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-row">
+      <span class="bug-label">What happened</span>
+      <span>Loading a low-poly Jeep instead of the Minecraft cube caused an immediate crash — stack overflow or memory access violation.</span>
+    </div>
+    <div class="bug-row">
+      <span class="bug-label">Cause</span>
+      <span>The entire texture — over a million pixels — was being copied into the rasterizer every frame. The tiny Minecraft texture hid this; the Jeep's larger texture exposed it immediately.</span>
+    </div>
+    <div class="bug-row">
+      <span class="bug-label">Fix</span>
+      <span>Pass the material as a <code>const*</code> pointer instead of by value. 8 bytes instead of megabytes per frame.</span>
+    </div>
+  </div>
+</div>
+
+<div class="bug-card">
+  <div class="bug-header">
+    <span class="bug-tag">12</span>
+    <span class="bug-title">Multiple objects — one always renders on top regardless of depth</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-row">
+      <span class="bug-label">What happened</span>
+      <span>With two objects in the scene, changing the render order always made one appear in front of the other, ignoring actual depth.</span>
+    </div>
+    <div class="bug-row">
+      <span class="bug-label">Cause</span>
+      <span>Each object had its own z-buffer. Each one only compared depth against itself, not against the other objects in the scene.</span>
+    </div>
+    <div class="bug-row">
+      <span class="bug-label">Fix</span>
+      <span>A single global z-buffer shared across all objects and passed as a parameter to the render function.</span>
+    </div>
+  </div>
+</div>
+
+<div class="bug-card">
+  <div class="bug-header">
+    <span class="bug-tag">13</span>
+    <span class="bug-title">Phong shading frozen — normals not rotating with the object</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-row">
+      <span class="bug-label">What happened</span>
+      <span>The lighting looked correct at first, but as the object rotated, the shadows stayed fixed — as if painted on once and never updated.</span>
+    </div>
+    <div class="bug-row">
+      <span class="bug-label">Cause</span>
+      <span>The original OBJ normals and vertex positions were being used for lighting, not the transformed ones. The rotation wasn't being applied to the normals.</span>
+    </div>
+    <div class="bug-row">
+      <span class="bug-label">Fix</span>
+      <span>Apply the rotation matrix to normals and the full model matrix to vertex positions before passing them to the rasterizer.</span>
+    </div>
+  </div>
+</div>
+
+<div class="bug-card">
+  <div class="bug-header">
+    <span class="bug-tag">14</span>
+    <span class="bug-title">Phong shading looks flat — barycentric order wrong again</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-row">
+      <span class="bug-label">What happened</span>
+      <span>The object rotated correctly and lighting responded, but even on detailed models the triangles were clearly visible — no smooth gradient.</span>
+    </div>
+    <div class="bug-row">
+      <span class="bug-label">Cause</span>
+      <span>Normals and 3D positions were being interpolated, but assigned to the wrong barycentric coordinates — same mistake as the first color interpolation bug.</span>
+    </div>
+    <div class="bug-row">
+      <span class="bug-label">Fix</span>
+      <span>Match the barycentric order to the one used for UV interpolation. 3 characters changed.</span>
+    </div>
+  </div>
+</div>
+
+<div class="bug-card">
+  <div class="bug-header">
+    <span class="bug-tag">15</span>
+    <span class="bug-title">Drunk camera — lookAt not inverted</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-row">
+      <span class="bug-label">What happened</span>
+      <span>Moving the camera made everything spin erratically. Looking left felt like going right. Nothing was consistent.</span>
+    </div>
+    <div class="bug-row">
+      <span class="bug-label">Cause</span>
+      <span>The lookAt matrix was the camera-to-world transform, not the world-to-camera (view) transform. It was moving the camera into the world instead of moving the world into camera space. Also mixing OpenGL and DirectX conventions for the forward vector.</span>
+    </div>
+    <div class="bug-row">
+      <span class="bug-label">Fix</span>
+      <span>Use the inverse (transposed rotation part) and fix the sign conventions consistently.</span>
+    </div>
+  </div>
+</div>
+
+<div class="bug-card">
+  <div class="bug-header">
+    <span class="bug-tag">16</span>
+    <span class="bug-title">Spotlight not visible — gimbal lock in lookAt</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-row">
+      <span class="bug-label">What happened</span>
+      <span>The directional light worked. The spotlight produced no light and no shadow.</span>
+    </div>
+    <div class="bug-row">
+      <span class="bug-label">Cause</span>
+      <span>The spotlight was pointing straight down — perfectly parallel to the world up vector used to compute the right vector in lookAt. A cross product of two parallel vectors is zero, breaking the entire matrix.</span>
+    </div>
+    <div class="bug-row">
+      <span class="bug-label">Fix</span>
+      <span>Short-term: tilt the light slightly off vertical. Long-term: handle the parallel case in lookAt by switching to a different up reference vector when forward ≈ up.</span>
+    </div>
+  </div>
+</div>
+
+<div class="page-nav">
+  <a href="../../pipeline/10_shadows/" class="page-nav-btn prev">← Shadow Mapping</a>
+  <a href="../process/" class="page-nav-btn next">Process & Research →</a>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      <script id="__config" type="application/json">{"base": "../..", "features": ["navigation.tabs", "navigation.top", "navigation.sections", "content.code.copy", "toc.follow"], "search": "../../assets/javascripts/workers/search.973d3a69.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.f55a23d4.min.js"></script>
+      
+        <script src="../../javascripts/mathjax.js"></script>
+      
+        <script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+    
+  </body>
+</html>

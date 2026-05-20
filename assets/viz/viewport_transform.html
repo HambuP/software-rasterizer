@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Viewport Transform</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 100%; height: 100%; background: #0d0c0a; overflow: hidden; font-family: monospace; }
+
+#wrap { width: 100%; height: 100%; display: flex; flex-direction: column; }
+#scene-area { flex: 1; position: relative; min-height: 0; }
+canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+
+#hud {
+  flex-shrink: 0;
+  padding: 14px 30px;
+  display: flex; gap: 40px; align-items: center;
+  border-top: 1px solid #1e1a14;
+  background: #0d0c0a;
+}
+.slider-cell {
+  display: flex; align-items: center; gap: 12px;
+  font-size: 13px; color: #c8bba8;
+  flex: 1; min-width: 0;
+}
+.slider-cell label {
+  font-weight: bold; min-width: 52px;
+}
+.slider-cell input[type="range"] {
+  flex: 1; accent-color: #c8894a; cursor: pointer; min-width: 0;
+}
+.slider-cell .val {
+  font-variant-numeric: tabular-nums;
+  color: #d4a855;
+  min-width: 62px;
+  text-align: right;
+}
+</style>
+</head>
+<body>
+<div id="wrap">
+
+  <div id="scene-area">
+    <canvas id="canvas"></canvas>
+  </div>
+
+  <div id="hud">
+    <div class="slider-cell">
+      <label>Width</label>
+      <input type="range" id="wSlider" min="200" max="1920" step="10" value="800">
+      <span class="val"><span id="wVal">800</span> px</span>
+    </div>
+    <div class="slider-cell">
+      <label>Height</label>
+      <input type="range" id="hSlider" min="100" max="1200" step="10" value="450">
+      <span class="val"><span id="hVal">450</span> px</span>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const $ = id => document.getElementById(id);
+
+let screenW = 800, screenH = 450;
+
+const vertices = [
+  { x: -0.55, y:  0.55, color: '#e05050', label: 'A' },
+  { x:  0.65, y:  0.30, color: '#50d050', label: 'B' },
+  { x:  0.05, y: -0.50, color: '#5080e0', label: 'C' }
+];
+
+let layout = {};
+function computeLayout() {
+  const w = canvas.clientWidth;
+  const h = canvas.clientHeight;
+  const halfW = w / 2;
+  const pad = 60;
+
+  const ndcMaxSide = Math.min(halfW - pad * 2, h - 100);
+  const ndcScale = ndcMaxSide / 2;
+  const ndcCx = halfW / 2;
+  const ndcCy = h / 2;
+
+  const sMaxW = halfW - pad * 2;
+  const sMaxH = h - 100;
+  let sW, sH;
+  const aspect = screenW / screenH;
+  if (aspect >= sMaxW / sMaxH) { sW = sMaxW; sH = sMaxW / aspect; }
+  else                          { sH = sMaxH; sW = sMaxH * aspect; }
+  const sLeft = halfW + (halfW - sW) / 2;
+  const sTop  = (h - sH) / 2;
+
+  layout = { w, h, ndcCx, ndcCy, ndcScale, sLeft, sTop, sW, sH };
+}
+
+function ndcToCanvas(nx, ny) {
+  return [layout.ndcCx + nx * layout.ndcScale, layout.ndcCy - ny * layout.ndcScale];
+}
+function canvasToNdc(cx, cy) {
+  return [(cx - layout.ndcCx) / layout.ndcScale, -(cy - layout.ndcCy) / layout.ndcScale];
+}
+function ndcToScreenCanvas(nx, ny) {
+  // NDC → pixel
+  const px = (nx + 1) * screenW / 2;
+  const py = (1 - ny) * screenH / 2;        // Y flip happens here
+  return [
+    layout.sLeft + (px / screenW) * layout.sW,
+    layout.sTop  + (py / screenH) * layout.sH
+  ];
+}
+function screenCanvasToNdc(cx, cy) {
+  const px = (cx - layout.sLeft) / layout.sW * screenW;
+  const py = (cy - layout.sTop)  / layout.sH * screenH;
+  return [(px * 2 / screenW) - 1, 1 - (py * 2 / screenH)];
+}
+
+/* ── Drawing ───────────────────────────────────────── */
+function draw() {
+  computeLayout();
+  ctx.clearRect(0, 0, layout.w, layout.h);
+  drawNDC();
+  drawScreen();
+  drawConnections();
+}
+
+function drawNDC() {
+  const { ndcCx, ndcCy, ndcScale } = layout;
+
+  // Title
+  ctx.fillStyle = '#e8c080';
+  ctx.font = 'bold 13px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('NDC', ndcCx, ndcCy - ndcScale - 18);
+
+  // Sparse inner grid (halves only)
+  ctx.strokeStyle = '#1e1a14';
+  ctx.lineWidth = 1;
+  for (const v of [-0.5, 0.5]) {
+    ctx.beginPath();
+    ctx.moveTo(ndcCx + v * ndcScale, ndcCy - ndcScale);
+    ctx.lineTo(ndcCx + v * ndcScale, ndcCy + ndcScale);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(ndcCx - ndcScale, ndcCy - v * ndcScale);
+    ctx.lineTo(ndcCx + ndcScale, ndcCy - v * ndcScale);
+    ctx.stroke();
+  }
+
+  // Outline
+  ctx.strokeStyle = '#3a3020';
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(ndcCx - ndcScale, ndcCy - ndcScale, ndcScale * 2, ndcScale * 2);
+
+  // Axes
+  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = 'rgba(224, 80, 80, 0.50)';
+  ctx.beginPath();
+  ctx.moveTo(ndcCx - ndcScale, ndcCy); ctx.lineTo(ndcCx + ndcScale, ndcCy); ctx.stroke();
+  ctx.strokeStyle = 'rgba(80, 208, 80, 0.50)';
+  ctx.beginPath();
+  ctx.moveTo(ndcCx, ndcCy - ndcScale); ctx.lineTo(ndcCx, ndcCy + ndcScale); ctx.stroke();
+
+  // Y up indicator (the key visual point)
+  ctx.fillStyle = '#50d050';
+  ctx.font = 'bold 13px monospace';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillText('Y ↑', ndcCx + 8, ndcCy - ndcScale + 16);
+
+  // Corner labels
+  ctx.fillStyle = '#7a6a55';
+  ctx.font = '11px monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+  ctx.fillText('−1', ndcCx - ndcScale, ndcCy + ndcScale + 6);
+  ctx.fillText('+1', ndcCx + ndcScale, ndcCy + ndcScale + 6);
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('+1', ndcCx - ndcScale - 8, ndcCy - ndcScale);
+  ctx.fillText('−1', ndcCx - ndcScale - 8, ndcCy + ndcScale);
+
+  // Triangle
+  const pts = vertices.map(v => ndcToCanvas(v.x, v.y));
+  drawTriangle(pts);
+  drawVertices(pts);
+}
+
+function drawScreen() {
+  const { sLeft, sTop, sW, sH } = layout;
+
+  // Title
+  ctx.fillStyle = '#e8c080';
+  ctx.font = 'bold 13px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText(`Screen ${screenW} × ${screenH}`, sLeft + sW / 2, sTop - 18);
+
+  // Background
+  ctx.fillStyle = '#161310';
+  ctx.fillRect(sLeft, sTop, sW, sH);
+
+  // Sparse inner grid (halves only)
+  ctx.strokeStyle = '#1e1a14';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(sLeft + sW / 2, sTop); ctx.lineTo(sLeft + sW / 2, sTop + sH);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(sLeft, sTop + sH / 2); ctx.lineTo(sLeft + sW, sTop + sH / 2);
+  ctx.stroke();
+
+  // Outline
+  ctx.strokeStyle = '#3a3020';
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(sLeft, sTop, sW, sH);
+
+  // Origin marker
+  ctx.fillStyle = '#c8bba8';
+  ctx.beginPath();
+  ctx.arc(sLeft, sTop, 4, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Y down indicator (the key visual point)
+  ctx.fillStyle = '#50d050';
+  ctx.font = 'bold 13px monospace';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillText('Y ↓', sLeft + 8, sTop + 22);
+
+  // Corner labels
+  ctx.fillStyle = '#7a6a55';
+  ctx.font = '11px monospace';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText('(0, 0)', sLeft + 8, sTop + 32);
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'bottom';
+  ctx.fillText(`(${screenW}, ${screenH})`, sLeft + sW - 6, sTop + sH - 4);
+
+  // Triangle
+  const pts = vertices.map(v => ndcToScreenCanvas(v.x, v.y));
+  drawTriangle(pts);
+  drawVertices(pts);
+}
+
+function drawTriangle(pts) {
+  ctx.fillStyle = 'rgba(200, 137, 74, 0.10)';
+  ctx.beginPath();
+  ctx.moveTo(pts[0][0], pts[0][1]);
+  ctx.lineTo(pts[1][0], pts[1][1]);
+  ctx.lineTo(pts[2][0], pts[2][1]);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = '#c8894a';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+}
+
+function drawVertices(pts) {
+  vertices.forEach((v, i) => {
+    const [vx, vy] = pts[i];
+    ctx.fillStyle = v.color;
+    ctx.beginPath();
+    ctx.arc(vx, vy, 8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#0d0c0a';
+    ctx.font = 'bold 10px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(v.label, vx, vy + 0.5);
+  });
+}
+
+function drawConnections() {
+  ctx.setLineDash([4, 5]);
+  ctx.lineWidth = 1;
+  vertices.forEach(v => {
+    const [nx, ny] = ndcToCanvas(v.x, v.y);
+    const [sx, sy] = ndcToScreenCanvas(v.x, v.y);
+    ctx.strokeStyle = v.color + '40';
+    ctx.beginPath();
+    ctx.moveTo(nx, ny);
+    ctx.lineTo(sx, sy);
+    ctx.stroke();
+  });
+  ctx.setLineDash([]);
+}
+
+/* ── Interaction (drag in either space) ────────────── */
+let dragging = null;
+
+function hitTest(mx, my) {
+  for (let i = 0; i < 3; i++) {
+    const [vx, vy] = ndcToCanvas(vertices[i].x, vertices[i].y);
+    if (Math.hypot(mx - vx, my - vy) < 14) return { idx: i, mode: 'ndc' };
+  }
+  for (let i = 0; i < 3; i++) {
+    const [vx, vy] = ndcToScreenCanvas(vertices[i].x, vertices[i].y);
+    if (Math.hypot(mx - vx, my - vy) < 14) return { idx: i, mode: 'screen' };
+  }
+  return null;
+}
+
+function getEventXY(e) {
+  const rect = canvas.getBoundingClientRect();
+  if (e.touches && e.touches.length > 0) {
+    return [e.touches[0].clientX - rect.left, e.touches[0].clientY - rect.top];
+  }
+  return [e.clientX - rect.left, e.clientY - rect.top];
+}
+
+function pointerDown(e) {
+  const [mx, my] = getEventXY(e);
+  const hit = hitTest(mx, my);
+  if (hit) {
+    dragging = hit;
+    canvas.style.cursor = 'grabbing';
+    e.preventDefault();
+  }
+}
+function pointerMove(e) {
+  const [mx, my] = getEventXY(e);
+  if (!dragging) {
+    canvas.style.cursor = hitTest(mx, my) ? 'grab' : 'default';
+    return;
+  }
+  let nx, ny;
+  if (dragging.mode === 'ndc') [nx, ny] = canvasToNdc(mx, my);
+  else                          [nx, ny] = screenCanvasToNdc(mx, my);
+  vertices[dragging.idx].x = Math.max(-1.3, Math.min(1.3, nx));
+  vertices[dragging.idx].y = Math.max(-1.3, Math.min(1.3, ny));
+  draw();
+  e.preventDefault();
+}
+function pointerUp() {
+  dragging = null;
+  canvas.style.cursor = 'default';
+}
+
+canvas.addEventListener('mousedown', pointerDown);
+window.addEventListener('mousemove', pointerMove);
+window.addEventListener('mouseup', pointerUp);
+canvas.addEventListener('touchstart', pointerDown, { passive: false });
+canvas.addEventListener('touchmove', pointerMove, { passive: false });
+canvas.addEventListener('touchend', pointerUp);
+canvas.addEventListener('touchcancel', pointerUp);
+
+/* ── Sliders ───────────────────────────────────────── */
+$('wSlider').addEventListener('input', e => {
+  screenW = parseInt(e.target.value);
+  $('wVal').textContent = screenW;
+  draw();
+});
+$('hSlider').addEventListener('input', e => {
+  screenH = parseInt(e.target.value);
+  $('hVal').textContent = screenH;
+  draw();
+});
+
+/* ── Canvas sizing ─────────────────────────────────── */
+function resize() {
+  const dpr = Math.min(devicePixelRatio || 1, 2);
+  const rect = canvas.getBoundingClientRect();
+  canvas.width  = Math.max(1, Math.floor(rect.width  * dpr));
+  canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  draw();
+}
+window.addEventListener('resize', resize);
+resize();
+</script>
+</body>
+</html>

@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pitch, Yaw, Roll</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 100%; height: 100%; background: #0d0c0a; overflow: hidden; }
+
+#wrap {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  background: #0d0c0a;
+  font-family: monospace;
+}
+
+/* Left column: controls */
+#left-panel {
+  width: 300px;
+  flex-shrink: 0;
+  padding: 24px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  border-right: 1px solid #1e1a14;
+}
+
+/* Right column: 3D scene */
+#scene-area {
+  flex: 1;
+  position: relative;
+  cursor: grab;
+  overflow: hidden;
+  min-width: 0;
+}
+#scene-area:active { cursor: grabbing; }
+
+canvas { display: block; }
+
+#hint {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #4a3a2a;
+  font-size: 12px;
+  font-family: monospace;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.panel-title {
+  color: #e8c080;
+  font-size: 12px;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  margin-bottom: 2px;
+}
+
+#controls {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.slider-row {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 14px;
+  color: #c8bba8;
+}
+.slider-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+.slider-label { font-weight: bold; font-size: 15px; }
+.slider-label.pitch { color: #e05050; }
+.slider-label.yaw   { color: #50d050; }
+.slider-label.roll  { color: #5080e0; }
+.slider-val {
+  color: #9a8878;
+  font-variant-numeric: tabular-nums;
+  font-size: 14px;
+}
+.slider-row input[type="range"] {
+  width: 100%;
+  accent-color: #c8894a;
+  cursor: pointer;
+}
+
+#buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.btn {
+  padding: 8px 14px;
+  border-radius: 6px;
+  border: 1px solid #3a3020;
+  background: transparent;
+  color: #7a6a55;
+  font-size: 13px;
+  font-family: monospace;
+  cursor: pointer;
+  transition: all .15s;
+}
+.btn:hover { color: #c8bba8; border-color: #4a3a2a; }
+
+#info {
+  color: #7a6a55;
+  font-size: 13px;
+  line-height: 1.85;
+  margin-top: auto;
+  padding-top: 16px;
+  border-top: 1px solid #1e1a14;
+}
+#info .row   { display: block; }
+#info .red   { color: #e05050; }
+#info .green { color: #50d050; }
+#info .blue  { color: #5080e0; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="left-panel">
+    <div>
+      <div class="panel-title">Rotations</div>
+      <div id="controls">
+        <label class="slider-row">
+          <div class="slider-header">
+            <span class="slider-label pitch">Pitch</span>
+            <span class="slider-val" id="pitchVal">0°</span>
+          </div>
+          <input type="range" id="pitchSlider" min="-180" max="180" step="1" value="0">
+        </label>
+        <label class="slider-row">
+          <div class="slider-header">
+            <span class="slider-label yaw">Yaw</span>
+            <span class="slider-val" id="yawVal">0°</span>
+          </div>
+          <input type="range" id="yawSlider" min="-180" max="180" step="1" value="0">
+        </label>
+        <label class="slider-row">
+          <div class="slider-header">
+            <span class="slider-label roll">Roll</span>
+            <span class="slider-val" id="rollVal">0°</span>
+          </div>
+          <input type="range" id="rollSlider" min="-180" max="180" step="1" value="0">
+        </label>
+      </div>
+    </div>
+
+    <div id="buttons">
+      <button class="btn" id="gimbalBtn">Gimbal Lock</button>
+      <button class="btn" id="resetBtn">Reset</button>
+    </div>
+  </div>
+
+  <div id="scene-area">
+    <span id="hint">drag to orbit · scroll to zoom</span>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+var sceneArea = document.getElementById('scene-area');
+
+/* ── Renderer mounts inside scene-area (the right column) ───── */
+var renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(sceneArea.offsetWidth, sceneArea.offsetHeight);
+renderer.setClearColor(0x0d0c0a);
+sceneArea.appendChild(renderer.domElement);
+
+var scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0x0d0c0a, 14, 32);
+
+var camera = new THREE.PerspectiveCamera(45, sceneArea.offsetWidth / sceneArea.offsetHeight, 0.1, 100);
+
+/* ── Lights ─────────────────────────────────────────────────── */
+scene.add(new THREE.AmbientLight(0xffffff, 0.35));
+var sun = new THREE.DirectionalLight(0xffd8a0, 0.95);
+sun.position.set(5, 8, 4);
+scene.add(sun);
+var fill = new THREE.DirectionalLight(0x334488, 0.35);
+fill.position.set(-4, 2, -5);
+scene.add(fill);
+
+/* ── Helpers ────────────────────────────────────────────────── */
+function makeLabel(txt, position, hexColor) {
+  var c = document.createElement('canvas');
+  c.width = 128; c.height = 56;
+  var ctx = c.getContext('2d');
+  ctx.font = 'bold 32px monospace';
+  ctx.fillStyle = '#' + hexColor.toString(16).padStart(6, '0');
+  ctx.fillText(txt, 4, 40);
+  var sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true }));
+  sp.position.copy(position);
+  sp.scale.set(0.85, 0.37, 1);
+  return sp;
+}
+
+function makeLine(from, to, color, opacity) {
+  opacity = opacity === undefined ? 1 : opacity;
+  var mat = new THREE.LineBasicMaterial({ color: color, transparent: opacity < 1, opacity: opacity });
+  var geo = new THREE.BufferGeometry().setFromPoints([from, to]);
+  return new THREE.Line(geo, mat);
+}
+
+function makeDashedLine(from, to, color, opacity) {
+  opacity = opacity === undefined ? 1 : opacity;
+  var mat = new THREE.LineDashedMaterial({
+    color: color, dashSize: 0.18, gapSize: 0.14,
+    transparent: opacity < 1, opacity: opacity
+  });
+  var geo = new THREE.BufferGeometry().setFromPoints([from, to]);
+  var line = new THREE.Line(geo, mat);
+  line.computeLineDistances();
+  return line;
+}
+
+/* ── World axes (fixed, faded, dashed) ───────────────────────── */
+var worldAxes = new THREE.Group();
+var wL = 2.6;
+worldAxes.add(makeDashedLine(new THREE.Vector3(-wL,0,0), new THREE.Vector3(wL,0,0), 0xff5555, 0.42));
+worldAxes.add(makeDashedLine(new THREE.Vector3(0,-wL,0), new THREE.Vector3(0,wL,0), 0x55ee55, 0.42));
+worldAxes.add(makeDashedLine(new THREE.Vector3(0,0,-wL), new THREE.Vector3(0,0,wL), 0x5599ff, 0.42));
+worldAxes.add(makeLabel('X', new THREE.Vector3(wL + 0.25, 0.10, 0), 0xaa4040));
+worldAxes.add(makeLabel('Y', new THREE.Vector3(0.10, wL + 0.25, 0), 0x40aa40));
+worldAxes.add(makeLabel('Z', new THREE.Vector3(0.10, 0.10, wL + 0.25), 0x4070aa));
+scene.add(worldAxes);
+
+/* ── Airplane: forward is local −Z, right is +X, up is +Y ───── */
+function makeAirplane() {
+  var g = new THREE.Group();
+  var matMain    = new THREE.MeshLambertMaterial({ color: 0xc8894a });
+  var matWing    = new THREE.MeshLambertMaterial({ color: 0xd4a855 });
+  var matCockpit = new THREE.MeshLambertMaterial({ color: 0x556680, transparent: true, opacity: 0.85 });
+
+  var fuselage = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.35, 2.0), matMain);
+  g.add(fuselage);
+
+  var nose = new THREE.Mesh(new THREE.CylinderGeometry(0.175, 0, 0.4, 16), matMain);
+  nose.rotation.x = Math.PI / 2;
+  nose.position.z = -1.2;
+  g.add(nose);
+
+  var wings = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.05, 0.55), matWing);
+  wings.position.z = -0.15;
+  g.add(wings);
+
+  var tailFin = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.45, 0.4), matMain);
+  tailFin.position.set(0, 0.30, 0.85);
+  g.add(tailFin);
+
+  var tailStab = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.05, 0.3), matWing);
+  tailStab.position.set(0, 0.05, 0.9);
+  g.add(tailStab);
+
+  var cockpit = new THREE.Mesh(new THREE.SphereGeometry(0.18, 16, 10), matCockpit);
+  cockpit.position.set(0, 0.18, -0.4);
+  cockpit.scale.set(0.9, 0.7, 1.6);
+  g.add(cockpit);
+
+  return g;
+}
+
+var plane = makeAirplane();
+plane.rotation.order = 'YXZ'; // yaw → pitch → roll (Tait-Bryan aviation)
+scene.add(plane);
+
+/* ── Body axes (attached to plane) ───────────────────────────── */
+function makeBodyAxes() {
+  var g = new THREE.Group();
+  var L = 1.6;
+  g.add(makeLine(new THREE.Vector3(0,0,0), new THREE.Vector3( L, 0, 0), 0xff5555));
+  g.add(makeLabel('Xc', new THREE.Vector3( L + 0.30, 0.10, 0), 0xff5555));
+  g.add(makeLine(new THREE.Vector3(0,0,0), new THREE.Vector3( 0, L, 0), 0x55ee55));
+  g.add(makeLabel('Yc', new THREE.Vector3( 0.10, L + 0.30, 0), 0x55ee55));
+  g.add(makeLine(new THREE.Vector3(0,0,0), new THREE.Vector3( 0, 0,-L), 0x5599ff));
+  g.add(makeLabel('−Z', new THREE.Vector3( 0.10, 0.15, -L - 0.34), 0x5599ff));
+  return g;
+}
+plane.add(makeBodyAxes());
+
+/* ── Rotation state ──────────────────────────────────────────── */
+var pitch = 0, yaw = 0, roll = 0;
+function applyRotation() {
+  plane.rotation.set(
+    pitch * Math.PI / 180,
+    yaw   * Math.PI / 180,
+    roll  * Math.PI / 180
+  );
+}
+
+/* ── UI hookups ──────────────────────────────────────────────── */
+var pitchSlider = document.getElementById('pitchSlider');
+var yawSlider   = document.getElementById('yawSlider');
+var rollSlider  = document.getElementById('rollSlider');
+var pitchVal    = document.getElementById('pitchVal');
+var yawVal      = document.getElementById('yawVal');
+var rollVal     = document.getElementById('rollVal');
+
+pitchSlider.addEventListener('input', function(e) {
+  pitch = parseFloat(e.target.value);
+  pitchVal.textContent = Math.round(pitch) + '°';
+  applyRotation();
+});
+yawSlider.addEventListener('input', function(e) {
+  yaw = parseFloat(e.target.value);
+  yawVal.textContent = Math.round(yaw) + '°';
+  applyRotation();
+});
+rollSlider.addEventListener('input', function(e) {
+  roll = parseFloat(e.target.value);
+  rollVal.textContent = Math.round(roll) + '°';
+  applyRotation();
+});
+
+var gimbalAnim = null;
+document.getElementById('gimbalBtn').addEventListener('click', function() {
+  if (gimbalAnim) return;
+  var startPitch = pitch;
+  var target = (Math.abs(pitch - 90) < 1) ? 0 : 90;
+  var t0 = performance.now();
+  function step() {
+    var t = (performance.now() - t0) / 700;
+    if (t >= 1) {
+      pitch = target;
+      gimbalAnim = null;
+    } else {
+      var et = t < 0.5 ? 2*t*t : -1 + (4 - 2*t)*t;
+      pitch = startPitch + (target - startPitch) * et;
+      gimbalAnim = requestAnimationFrame(step);
+    }
+    pitchSlider.value = pitch;
+    pitchVal.textContent = Math.round(pitch) + '°';
+    applyRotation();
+  }
+  gimbalAnim = requestAnimationFrame(step);
+});
+
+document.getElementById('resetBtn').addEventListener('click', function() {
+  pitch = yaw = roll = 0;
+  pitchSlider.value = 0; pitchVal.textContent = '0°';
+  yawSlider.value   = 0; yawVal.textContent   = '0°';
+  rollSlider.value  = 0; rollVal.textContent  = '0°';
+  applyRotation();
+});
+
+/* ── Orbit camera (manual) ───────────────────────────────────── */
+var theta = -1.0, phi = 0.32, radius = 7.0;
+function updateCamera() {
+  camera.position.set(
+    radius * Math.cos(phi) * Math.sin(theta),
+    radius * Math.sin(phi),
+    radius * Math.cos(phi) * Math.cos(theta)
+  );
+  camera.lookAt(0, 0, 0);
+  camera.updateProjectionMatrix();
+}
+updateCamera();
+
+var drag = false, mx = 0, my = 0;
+
+sceneArea.addEventListener('mousedown', function(e) {
+  if (e.target.tagName !== 'CANVAS') return;
+  drag = true; mx = e.clientX; my = e.clientY;
+});
+window.addEventListener('mouseup',   function() { drag = false; });
+window.addEventListener('mousemove', function(e) {
+  if (!drag) return;
+  theta -= (e.clientX - mx) * 0.006;
+  phi    = Math.max(-1.3, Math.min(1.3, phi - (e.clientY - my) * 0.006));
+  mx = e.clientX; my = e.clientY;
+  updateCamera();
+});
+
+sceneArea.addEventListener('wheel', function(e) {
+  radius = Math.max(3.5, Math.min(20, radius + e.deltaY * 0.015));
+  updateCamera();
+  e.preventDefault();
+}, { passive: false });
+
+sceneArea.addEventListener('touchstart', function(e) {
+  if (e.touches.length === 0) return;
+  drag = true; mx = e.touches[0].clientX; my = e.touches[0].clientY;
+  e.preventDefault();
+}, { passive: false });
+sceneArea.addEventListener('touchmove', function(e) {
+  if (!drag || e.touches.length === 0) return;
+  theta -= (e.touches[0].clientX - mx) * 0.006;
+  phi    = Math.max(-1.3, Math.min(1.3, phi - (e.touches[0].clientY - my) * 0.006));
+  mx = e.touches[0].clientX; my = e.touches[0].clientY;
+  updateCamera();
+  e.preventDefault();
+}, { passive: false });
+sceneArea.addEventListener('touchend',    function() { drag = false; });
+sceneArea.addEventListener('touchcancel', function() { drag = false; });
+
+/* ── Loop + resize ───────────────────────────────────────────── */
+function animate() {
+  requestAnimationFrame(animate);
+  renderer.render(scene, camera);
+}
+animate();
+
+window.addEventListener('resize', function() {
+  var w = sceneArea.offsetWidth, h = sceneArea.offsetHeight;
+  renderer.setSize(w, h);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+});
+
+applyRotation();
+</script>
+</body>
+</html>

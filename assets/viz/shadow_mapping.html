@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shadow Mapping</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 100%; height: 100%; background: #0d0c0a; overflow: hidden; font-family: monospace; }
+
+#wrap { width: 100%; height: 100%; display: flex; flex-direction: column; background: #0d0c0a; }
+
+#scene-area {
+  flex: 1; position: relative; min-height: 0;
+}
+canvas { display: block; touch-action: none; }
+
+.label {
+  position: absolute;
+  top: 24px;
+  color: #e8c080;
+  font-size: 18px;
+  font-weight: bold;
+  pointer-events: none;
+  transform: translateX(-50%);
+  letter-spacing: 1px;
+}
+#label-left  { left: 25%; }
+#label-right { left: 75%; }
+
+#divider {
+  position: absolute;
+  top: 0; bottom: 0; left: 50%;
+  width: 1px;
+  background: #2a2520;
+  pointer-events: none;
+}
+
+#hud {
+  display: flex;
+  height: 78px;
+  border-top: 1px solid #1e1a14;
+  background: #12110e;
+}
+
+.slider-block {
+  flex: 1;
+  padding: 18px 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 14px;
+  color: #c8bba8;
+}
+.slider-block:first-child {
+  border-right: 1px solid #1e1a14;
+}
+.slider-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+.slider-label { font-weight: bold; }
+.slider-val {
+  color: #d4a855;
+  font-variant-numeric: tabular-nums;
+}
+.slider-block input[type="range"] {
+  width: 100%;
+  accent-color: #c8894a;
+  cursor: pointer;
+}
+
+#hint {
+  position: absolute;
+  bottom: 14px; left: 75%;
+  transform: translateX(-50%);
+  color: #4a3a2a;
+  font-size: 12px;
+  pointer-events: none;
+  white-space: nowrap;
+}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="scene-area">
+    <span class="label" id="label-left">Light's View</span>
+    <span class="label" id="label-right">Camera's View</span>
+    <div id="divider"></div>
+    <span id="hint">drag to orbit · scroll to zoom</span>
+  </div>
+  <div id="hud">
+    <div class="slider-block">
+      <div class="slider-header">
+        <span class="slider-label">light angle</span>
+        <span class="slider-val" id="laVal">0.50</span>
+      </div>
+      <input type="range" id="laSlider" min="0" max="6.28" step="0.01" value="0.50">
+    </div>
+    <div class="slider-block">
+      <div class="slider-header">
+        <span class="slider-label">shadow bias</span>
+        <span class="slider-val" id="biasVal">0.005</span>
+      </div>
+      <input type="range" id="biasSlider" min="0" max="0.02" step="0.0001" value="0.005">
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const sceneArea = document.getElementById('scene-area');
+const $ = id => document.getElementById(id);
+
+/* ── Three.js setup ─────────────────────────────────── */
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setClearColor(0x0d0c0a);
+sceneArea.appendChild(renderer.domElement);
+
+const scene  = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 100);
+
+/* ── Shadow map render target ───────────────────────── */
+const SHADOW_RES = 1024;
+const shadowMap = new THREE.WebGLRenderTarget(SHADOW_RES, SHADOW_RES, {
+  minFilter: THREE.NearestFilter,
+  magFilter: THREE.NearestFilter,
+  format: THREE.RGBAFormat
+});
+
+/* ── Shared uniforms (referenced by all shaded materials) ─ */
+const sharedUniforms = {
+  Ka:              { value: 0.22 },
+  Kd:              { value: 0.78 },
+  lightPos:        { value: new THREE.Vector3() },
+  lightColor:      { value: new THREE.Color(0xfff0d0) },
+  shadowMap:       { value: shadowMap.texture },
+  lightViewMatrix: { value: new THREE.Matrix4() },
+  lightProjMatrix: { value: new THREE.Matrix4() },
+  bias:            { value: 0.005 }
+};
+
+/* ── Light camera (orthographic, like a directional light) ── */
+const lightCamera = new THREE.OrthographicCamera(-5, 5, 5, -5, 0.5, 20);
+let lightAngle = 0.50;
+function updateLight() {
+  lightCamera.position.set(6 * Math.sin(lightAngle), 5, 6 * Math.cos(lightAngle));
+  lightCamera.lookAt(0, 0, 0);
+  lightCamera.updateMatrixWorld();
+  lightCamera.updateProjectionMatrix();
+
+  sharedUniforms.lightPos.value.copy(lightCamera.position);
+  sharedUniforms.lightViewMatrix.value.copy(lightCamera.matrixWorldInverse);
+  sharedUniforms.lightProjMatrix.value.copy(lightCamera.projectionMatrix);
+
+  lightMarker.position.copy(lightCamera.position);
+  halo.position.copy(lightCamera.position);
+}
+
+/* ── Depth-only material (used for shadow map pass) ─── */
+const depthMat = new THREE.ShaderMaterial({
+  vertexShader: `
+    void main() {
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  fragmentShader: `
+    void main() {
+      gl_FragColor = vec4(vec3(gl_FragCoord.z), 1.0);
+    }
+  `
+});
+
+/* ── Shaded material with shadow lookup ─────────────── */
+function makeShadowedMaterial(baseColor) {
+  return new THREE.ShaderMaterial({
+    uniforms: {
+      Ka:              sharedUniforms.Ka,
+      Kd:              sharedUniforms.Kd,
+      lightPos:        sharedUniforms.lightPos,
+      lightColor:      sharedUniforms.lightColor,
+      shadowMap:       sharedUniforms.shadowMap,
+      lightViewMatrix: sharedUniforms.lightViewMatrix,
+      lightProjMatrix: sharedUniforms.lightProjMatrix,
+      bias:            sharedUniforms.bias,
+      baseColor:       { value: new THREE.Color(baseColor) }
+    },
+    vertexShader: `
+      uniform mat4 lightViewMatrix;
+      uniform mat4 lightProjMatrix;
+
+      varying vec3 vNormal;
+      varying vec3 vWorldPos;
+      varying vec4 vLightSpacePos;
+
+      void main() {
+        vec4 wp = modelMatrix * vec4(position, 1.0);
+        vWorldPos = wp.xyz;
+        vNormal = normalize(mat3(modelMatrix) * normal);
+        vLightSpacePos = lightProjMatrix * lightViewMatrix * wp;
+        gl_Position = projectionMatrix * viewMatrix * wp;
+      }
+    `,
+    fragmentShader: `
+      uniform float Ka, Kd, bias;
+      uniform vec3  lightPos, baseColor, lightColor;
+      uniform sampler2D shadowMap;
+
+      varying vec3 vNormal;
+      varying vec3 vWorldPos;
+      varying vec4 vLightSpacePos;
+
+      void main() {
+        vec3 N = normalize(vNormal);
+        vec3 L = normalize(lightPos - vWorldPos);
+        float ndotl = max(dot(N, L), 0.0);
+
+        // Light-space NDC, transform to [0,1] for texture sampling
+        vec3 lightNdc = vLightSpacePos.xyz / vLightSpacePos.w;
+        lightNdc = lightNdc * 0.5 + 0.5;
+
+        float shadow = 0.0;
+        if (lightNdc.x >= 0.0 && lightNdc.x <= 1.0 &&
+            lightNdc.y >= 0.0 && lightNdc.y <= 1.0 &&
+            lightNdc.z <= 1.0) {
+          float storedDepth = texture2D(shadowMap, lightNdc.xy).r;
+          float currentDepth = lightNdc.z;
+          shadow = (currentDepth - bias > storedDepth) ? 1.0 : 0.0;
+        }
+
+        vec3 ambient = Ka * baseColor;
+        vec3 diffuse = Kd * ndotl * baseColor * lightColor;
+        vec3 color = ambient + diffuse * (1.0 - shadow);
+
+        gl_FragColor = vec4(color, 1.0);
+      }
+    `
+  });
+}
+
+/* ── Scene objects ──────────────────────────────────── */
+const ground = new THREE.Mesh(
+  new THREE.PlaneGeometry(8, 8),
+  makeShadowedMaterial(0x4a3525)
+);
+ground.rotation.x = -Math.PI / 2;
+scene.add(ground);
+
+const sphere = new THREE.Mesh(
+  new THREE.SphereGeometry(0.8, 48, 48),
+  makeShadowedMaterial(0xd49050)
+);
+sphere.position.set(0, 0.8, 0);
+scene.add(sphere);
+
+const box = new THREE.Mesh(
+  new THREE.BoxGeometry(1.2, 1.2, 1.2),
+  makeShadowedMaterial(0xa86530)
+);
+box.position.set(-1.8, 0.6, -0.5);
+box.rotation.y = 0.3;
+scene.add(box);
+
+const torus = new THREE.Mesh(
+  new THREE.TorusGeometry(0.6, 0.22, 16, 48),
+  makeShadowedMaterial(0xc88060)
+);
+torus.position.set(1.8, 0.8, 0.5);
+torus.rotation.x = Math.PI / 2;
+scene.add(torus);
+
+/* ── Light marker (visual, hidden during shadow pass) ── */
+const lightMarker = new THREE.Mesh(
+  new THREE.SphereGeometry(0.12, 20, 16),
+  new THREE.MeshBasicMaterial({ color: 0xffe090 })
+);
+scene.add(lightMarker);
+const halo = new THREE.Mesh(
+  new THREE.SphereGeometry(0.24, 20, 16),
+  new THREE.MeshBasicMaterial({ color: 0xffe090, transparent: true, opacity: 0.22 })
+);
+scene.add(halo);
+
+updateLight();
+
+/* ── Fullscreen quad for showing shadow map ─────────── */
+const debugScene  = new THREE.Scene();
+const debugCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+const debugMat = new THREE.ShaderMaterial({
+  uniforms: { tDepth: { value: shadowMap.texture } },
+  vertexShader: `
+    varying vec2 vUv;
+    void main() {
+      vUv = uv;
+      gl_Position = vec4(position, 1.0);
+    }
+  `,
+  fragmentShader: `
+    uniform sampler2D tDepth;
+    varying vec2 vUv;
+    void main() {
+      float d = texture2D(tDepth, vUv).r;
+      // Invert so objects closer to light appear brighter (more intuitive)
+      gl_FragColor = vec4(vec3(1.0 - d), 1.0);
+    }
+  `
+});
+const debugQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), debugMat);
+debugScene.add(debugQuad);
+
+/* ── Main orbit camera ──────────────────────────────── */
+const orbitCenter = new THREE.Vector3(0, 0.8, 0);
+let theta = 0.7, phi = 0.55, radius = 9.0;
+function updateCamera() {
+  const x = radius * Math.cos(phi) * Math.sin(theta);
+  const y = radius * Math.sin(phi);
+  const z = radius * Math.cos(phi) * Math.cos(theta);
+  camera.position.set(orbitCenter.x + x, orbitCenter.y + y, orbitCenter.z + z);
+  camera.lookAt(orbitCenter);
+}
+
+function resize() {
+  const w = sceneArea.offsetWidth, h = sceneArea.offsetHeight;
+  renderer.setSize(w, h);
+  camera.aspect = (w / 2) / h;
+  camera.updateProjectionMatrix();
+}
+resize();
+updateCamera();
+
+/* ── Drag / touch / wheel (only on right half) ──────── */
+function isInRightHalf(clientX) {
+  const rect = sceneArea.getBoundingClientRect();
+  return (clientX - rect.left) >= sceneArea.offsetWidth / 2;
+}
+
+let drag = false;
+let startX = 0, startY = 0, startTheta = 0, startPhi = 0;
+function beginDrag(x, y) {
+  drag = true;
+  startX = x; startY = y;
+  startTheta = theta; startPhi = phi;
+}
+function updateDrag(x, y) {
+  if (!drag) return;
+  theta = startTheta - (x - startX) * 0.0035;
+  phi   = Math.max(0.1, Math.min(1.3, startPhi + (y - startY) * 0.0035));
+  updateCamera();
+}
+function endDrag() { drag = false; }
+
+sceneArea.addEventListener('mousedown', e => {
+  if (!isInRightHalf(e.clientX)) return;
+  beginDrag(e.clientX, e.clientY);
+  e.preventDefault();
+});
+window.addEventListener('mouseup', endDrag);
+window.addEventListener('mousemove', e => updateDrag(e.clientX, e.clientY));
+
+sceneArea.addEventListener('touchstart', e => {
+  if (e.touches.length === 0) return;
+  if (!isInRightHalf(e.touches[0].clientX)) return;
+  beginDrag(e.touches[0].clientX, e.touches[0].clientY);
+  e.preventDefault();
+}, { passive: false });
+sceneArea.addEventListener('touchmove', e => {
+  if (e.touches.length === 0) return;
+  updateDrag(e.touches[0].clientX, e.touches[0].clientY);
+  e.preventDefault();
+}, { passive: false });
+sceneArea.addEventListener('touchend', endDrag);
+sceneArea.addEventListener('touchcancel', endDrag);
+
+sceneArea.addEventListener('wheel', e => {
+  if (!isInRightHalf(e.clientX)) return;
+  radius = Math.max(5, Math.min(18, radius + e.deltaY * 0.01));
+  updateCamera();
+  e.preventDefault();
+}, { passive: false });
+
+/* ── Sliders ────────────────────────────────────────── */
+$('laSlider').addEventListener('input', e => {
+  lightAngle = parseFloat(e.target.value);
+  updateLight();
+  $('laVal').textContent = lightAngle.toFixed(2);
+});
+$('biasSlider').addEventListener('input', e => {
+  const v = parseFloat(e.target.value);
+  sharedUniforms.bias.value = v;
+  $('biasVal').textContent = v.toFixed(4);
+});
+
+/* ── Render ─────────────────────────────────────────── */
+function render() {
+  const w = sceneArea.offsetWidth, h = sceneArea.offsetHeight;
+  const halfW = Math.floor(w / 2);
+
+  // ── Pass 1: depth from light's POV → shadow map ─────
+  scene.overrideMaterial = depthMat;
+  lightMarker.visible = false;
+  halo.visible = false;
+  renderer.setRenderTarget(shadowMap);
+  renderer.setClearColor(0xffffff, 1);    // white = depth 1 (max far)
+  renderer.render(scene, lightCamera);
+  scene.overrideMaterial = null;
+  lightMarker.visible = true;
+  halo.visible = true;
+
+  // Restore for screen passes
+  renderer.setRenderTarget(null);
+  renderer.setClearColor(0x0d0c0a, 1);
+
+  renderer.setScissorTest(true);
+
+  // ── Pass 2: left half — shadow map visualization ────
+  renderer.setScissor(0, 0, halfW, h);
+  renderer.setViewport(0, 0, halfW, h);
+  renderer.render(debugScene, debugCamera);
+
+  // ── Pass 3: right half — final shaded scene ─────────
+  renderer.setScissor(halfW, 0, w - halfW, h);
+  renderer.setViewport(halfW, 0, w - halfW, h);
+  renderer.render(scene, camera);
+
+  renderer.setScissorTest(false);
+}
+
+function animate() {
+  requestAnimationFrame(animate);
+  render();
+}
+animate();
+
+window.addEventListener('resize', resize);
+</script>
+</body>
+</html>

@@ -1,0 +1,1279 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="A software 3D rasterizer built from scratch in C++ using SDL3 — barycentric interpolation, z-buffer, UV texturing, Phong lighting, shadow mapping and multithreading.">
+      
+      
+        <meta name="author" content="Santiago Forero">
+      
+      
+        <link rel="canonical" href="https://hambup.me/rasterizer/pipeline/10_shadows/">
+      
+      
+        <link rel="prev" href="../09_lighting/">
+      
+      
+        <link rel="next" href="../../extras/bugs/">
+      
+      
+      <link rel="icon" href="../../assets/img/favicon.svg">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.23">
+    
+    
+      
+        <title>10 · Shadow Mapping - 3D Software Rasterizer</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.84d31ad4.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=DM+Sans:300,300i,400,400i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"DM Sans";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="custom" data-md-color-accent="custom">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#shadow-mapping" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="3D Software Rasterizer" class="md-header__button md-logo" aria-label="3D Software Rasterizer" data-md-component="logo">
+      
+  <img src="../../assets/img/favicon.svg" alt="logo">
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            3D Software Rasterizer
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              10 · Shadow Mapping
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/HambuP/3D-Rasterizer-in-Cpp-using-SDL3" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    HambuP/3D-Rasterizer-in-Cpp-using-SDL3
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../01_framebuffer/" class="md-tabs__link">
+          
+  
+  
+  Pipeline
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../extras/bugs/" class="md-tabs__link">
+          
+  
+  
+  Extras
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="3D Software Rasterizer" class="md-nav__button md-logo" aria-label="3D Software Rasterizer" data-md-component="logo">
+      
+  <img src="../../assets/img/favicon.svg" alt="logo">
+
+    </a>
+    3D Software Rasterizer
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/HambuP/3D-Rasterizer-in-Cpp-using-SDL3" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    HambuP/3D-Rasterizer-in-Cpp-using-SDL3
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Home
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    Pipeline
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            Pipeline
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../01_framebuffer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    01 · Framebuffer
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../02_barycentric/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    02 · Barycentric Coords
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../03_zbuffer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    03 · Z-Buffer
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../04_matrices/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    04 · Matrices & MVP
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../05_parser/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    05 · OBJ Parser
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../06_uv/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    06 · UV Texturing
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../07_culling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    07 · Culling & Threads
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../08_camera/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    08 · Camera
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../09_lighting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    09 · Phong & Toon
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    10 · Shadow Mapping
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    10 · Shadow Mapping
+    
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-goal" class="md-nav__link">
+    <span class="md-ellipsis">
+      The goal
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-shadow-pass" class="md-nav__link">
+    <span class="md-ellipsis">
+      The shadow pass
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#building-the-shadow-map" class="md-nav__link">
+    <span class="md-ellipsis">
+      Building the shadow map
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-shadow-test" class="md-nav__link">
+    <span class="md-ellipsis">
+      The shadow test
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#shadow-acne-and-bias" class="md-nav__link">
+    <span class="md-ellipsis">
+      Shadow acne and bias
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-dirty-flag" class="md-nav__link">
+    <span class="md-ellipsis">
+      The dirty flag
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#spotlight" class="md-nav__link">
+    <span class="md-ellipsis">
+      Spotlight
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#bugs" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bugs
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#result-the-final-scene" class="md-nav__link">
+    <span class="md-ellipsis">
+      Result — The final scene
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Extras
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            Extras
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../extras/bugs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Bugs — Hall of Fame
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../extras/process/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Process & Research
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../extras/math_primer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Math Primer
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../extras/references/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    References
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-goal" class="md-nav__link">
+    <span class="md-ellipsis">
+      The goal
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-shadow-pass" class="md-nav__link">
+    <span class="md-ellipsis">
+      The shadow pass
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#building-the-shadow-map" class="md-nav__link">
+    <span class="md-ellipsis">
+      Building the shadow map
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-shadow-test" class="md-nav__link">
+    <span class="md-ellipsis">
+      The shadow test
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#shadow-acne-and-bias" class="md-nav__link">
+    <span class="md-ellipsis">
+      Shadow acne and bias
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-dirty-flag" class="md-nav__link">
+    <span class="md-ellipsis">
+      The dirty flag
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#spotlight" class="md-nav__link">
+    <span class="md-ellipsis">
+      Spotlight
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#bugs" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bugs
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#result-the-final-scene" class="md-nav__link">
+    <span class="md-ellipsis">
+      Result — The final scene
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="shadow-mapping">Shadow Mapping</h1>
+<p class="subtitle">Teaching the renderer where the light can't reach.</p>
+
+<hr />
+<h2 id="the-goal">The goal</h2>
+<p>With Phong working, the scene looks lit but still unrealistic — <span class="accent-red">every surface receives direct light regardless of what's in the way</span>. Even faces on the back of an object that technically face the light source get illuminated, as if the object didn't exist. Shadow mapping fixes this.</p>
+<p>The idea: before rendering the scene from the camera, render it from the light's point of view. The result is a <span class="accent-gold">depth buffer seen from the light</span> — the shadow map. Any point in the scene that is farther from the light than what's recorded in that buffer is blocked by something else, and therefore in shadow.</p>
+<h2 id="the-shadow-pass">The shadow pass</h2>
+<p>A <strong>render pass</strong> is one full traversal of the scene — transforming every vertex, rasterizing every triangle, writing to a buffer. Most renderers use at least two passes per frame.</p>
+<ul>
+<li><span class="accent-gold"><strong>Pass 1 — Shadow pass:</strong></span> render the scene from the light's perspective. Store only depth values (no color, no normals, no textures) into a 1024×1024 float buffer. This is the shadow map — essentially a z-buffer from the light's point of view.</li>
+<li><span class="accent-gold"><strong>Pass 2 — Main pass:</strong></span> render normally from the camera. For each pixel, project its 3D position into light space and compare its depth to the shadow map. If it's farther away → something is blocking the light → shadow.</li>
+</ul>
+<div class="viz-wrapper">
+  <div class="viz-header">
+    <span class="viz-label">● Interactive</span>
+    <span class="viz-hint">see the shadow map and shadow test side by side</span>
+  </div>
+  <iframe src="../../assets/viz/shadow_mapping.html" width="100%" height="380" frameborder="0"></iframe>
+</div>
+
+<h2 id="building-the-shadow-map">Building the shadow map</h2>
+<p>The light has its own VP matrix — just like the camera, but from the light's perspective.</p>
+<p><strong>For directional lights</strong>, we use an <span class="accent-gold">orthographic projection</span>. A directional light has parallel rays — no convergence point, no perspective. Its view frustum is a simple box (defined by left/right, bottom/top, near/far bounds) rather than a pyramid.</p>
+<p>To map that box to NDC [-1,1]³, we need to scale and translate each axis independently. Take X: it currently spans [l, r]. We want it to span [-1, 1]. First center it by subtracting the midpoint (r+l)/2, then scale so the half-width becomes 1:</p>
+<div class="arithmatex">\[ x_{ndc} = \frac{x - (r+l)/2}{(r-l)/2} = \frac{2x}{r-l} - \frac{r+l}{r-l} \]</div>
+<p>Same logic for Y and Z. This gives the full orthographic matrix — just scale and translate, no w tricks, no perspective divide:</p>
+<div class="arithmatex">\[ M_{ortho} = \begin{pmatrix} 2/(r-l) &amp; 0 &amp; 0 &amp; -(r+l)/(r-l) \\ 0 &amp; 2/(t-b) &amp; 0 &amp; -(t+b)/(t-b) \\ 0 &amp; 0 &amp; 2/(f-n) &amp; -(f+n)/(f-n) \\ 0 &amp; 0 &amp; 0 &amp; 1 \end{pmatrix} \]</div>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kr">inline</span><span class="w"> </span><span class="n">Mat4</span><span class="w"> </span><span class="nf">ortho_matrix</span><span class="p">(</span><span class="kt">float</span><span class="w"> </span><span class="n">l</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">r</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">b</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">t</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">n</span><span class="p">,</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">f</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">        </span><span class="mi">2</span><span class="o">/</span><span class="p">(</span><span class="n">r</span><span class="o">-</span><span class="n">l</span><span class="p">),</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">       </span><span class="mi">0</span><span class="p">,</span><span class="w">       </span><span class="o">-</span><span class="p">(</span><span class="n">r</span><span class="o">+</span><span class="n">l</span><span class="p">)</span><span class="o">/</span><span class="p">(</span><span class="n">r</span><span class="o">-</span><span class="n">l</span><span class="p">),</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">        </span><span class="mi">0</span><span class="p">,</span><span class="w">       </span><span class="mi">2</span><span class="o">/</span><span class="p">(</span><span class="n">t</span><span class="o">-</span><span class="n">b</span><span class="p">),</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">       </span><span class="o">-</span><span class="p">(</span><span class="n">t</span><span class="o">+</span><span class="n">b</span><span class="p">)</span><span class="o">/</span><span class="p">(</span><span class="n">t</span><span class="o">-</span><span class="n">b</span><span class="p">),</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">        </span><span class="mi">0</span><span class="p">,</span><span class="w">       </span><span class="mi">0</span><span class="p">,</span><span class="w">       </span><span class="mi">2</span><span class="o">/</span><span class="p">(</span><span class="n">f</span><span class="o">-</span><span class="n">n</span><span class="p">),</span><span class="w"> </span><span class="o">-</span><span class="p">(</span><span class="n">f</span><span class="o">+</span><span class="n">n</span><span class="p">)</span><span class="o">/</span><span class="p">(</span><span class="n">f</span><span class="o">-</span><span class="n">n</span><span class="p">),</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">        </span><span class="mi">0</span><span class="p">,</span><span class="w">       </span><span class="mi">0</span><span class="p">,</span><span class="w">       </span><span class="mi">0</span><span class="p">,</span><span class="w">        </span><span class="mi">1</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">    </span><span class="p">};</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="p">}</span>
+</code></pre></div>
+<p><strong>For spotlights</strong>, we use a standard perspective projection since the light emanates from a point.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1">// Directional light — orthographic projection</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="n">l</span><span class="p">.</span><span class="n">light_vp</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ortho_matrix</span><span class="p">(</span><span class="mi">-35</span><span class="p">,</span><span class="w"> </span><span class="mi">-5</span><span class="p">,</span><span class="w"> </span><span class="mi">-15</span><span class="p">,</span><span class="w"> </span><span class="mi">15</span><span class="p">,</span><span class="w"> </span><span class="mf">0.1f</span><span class="p">,</span><span class="w"> </span><span class="mf">80.f</span><span class="p">)</span><span class="w"> </span><span class="o">*</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">             </span><span class="n">lookAt_matrix</span><span class="p">(</span><span class="n">light_pos</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">});</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="c1">// Spotlight — perspective projection</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="n">s</span><span class="p">.</span><span class="n">light_vp</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">projection_matrix</span><span class="p">(</span><span class="n">s</span><span class="p">.</span><span class="n">cone_angle</span><span class="p">,</span><span class="w"> </span><span class="mf">1.0f</span><span class="p">,</span><span class="w"> </span><span class="mf">0.1f</span><span class="p">,</span><span class="w"> </span><span class="mf">50.f</span><span class="p">)</span><span class="w"> </span><span class="o">*</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">             </span><span class="n">lookAt_matrix</span><span class="p">(</span><span class="n">s</span><span class="p">.</span><span class="n">position</span><span class="p">,</span><span class="w"> </span><span class="n">spot_target</span><span class="p">);</span>
+</code></pre></div>
+<p>The shadow pass rasterizes every triangle but skips all the expensive lighting math — only depth matters:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1">// Project vertex to light space</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="n">Vec4</span><span class="w"> </span><span class="n">clip</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">luz</span><span class="p">.</span><span class="n">light_vp</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">Vec4</span><span class="p">{</span><span class="n">ver</span><span class="p">.</span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="n">ver</span><span class="p">.</span><span class="n">y</span><span class="p">,</span><span class="w"> </span><span class="n">ver</span><span class="p">.</span><span class="n">z</span><span class="p">,</span><span class="w"> </span><span class="mf">1.0f</span><span class="p">};</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="n">Vec3</span><span class="w"> </span><span class="n">ndc</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="n">clip</span><span class="p">.</span><span class="n">x</span><span class="o">/</span><span class="n">clip</span><span class="p">.</span><span class="n">w</span><span class="p">,</span><span class="w"> </span><span class="n">clip</span><span class="p">.</span><span class="n">y</span><span class="o">/</span><span class="n">clip</span><span class="p">.</span><span class="n">w</span><span class="p">,</span><span class="w"> </span><span class="n">clip</span><span class="p">.</span><span class="n">z</span><span class="o">/</span><span class="n">clip</span><span class="p">.</span><span class="n">w</span><span class="p">};</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="c1">// Store depth in shadow map — same z-buffer logic as the main pass</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">ndc</span><span class="p">.</span><span class="n">z</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">shadow_map</span><span class="p">[</span><span class="n">sy</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">1024</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">sx</span><span class="p">])</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">    </span><span class="n">shadow_map</span><span class="p">[</span><span class="n">sy</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">1024</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">sx</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ndc</span><span class="p">.</span><span class="n">z</span><span class="p">;</span>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="p">}</span>
+</code></pre></div>
+<p>One important detail: the shadow pass interpolates depth <span class="accent-gold">linearly</span> — and this is <span class="accent-sage">exactly correct</span>, even for the spotlight's perspective projection. After the perspective divide, z_ndc is an affine function of the NDC screen coordinates — which means it's already linear in screen space. No perspective-correct interpolation needed. This is different from UV coordinates or normals, which live in object space and need the 1/w correction. Depth is already "in" the right space after the divide.</p>
+<h2 id="the-shadow-test">The shadow test</h2>
+<p>In the main pass, for each pixel we project its world-space position into light space and look it up in the shadow map:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1">// Project pixel world position to light space</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="n">Vec4</span><span class="w"> </span><span class="n">pos_luz</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">l</span><span class="p">.</span><span class="n">light_vp</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">Vec4</span><span class="p">{</span><span class="n">real_p</span><span class="p">.</span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="n">real_p</span><span class="p">.</span><span class="n">y</span><span class="p">,</span><span class="w"> </span><span class="n">real_p</span><span class="p">.</span><span class="n">z</span><span class="p">,</span><span class="w"> </span><span class="mf">1.0f</span><span class="p">};</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="n">Vec3</span><span class="w"> </span><span class="n">ndc_luz</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="n">pos_luz</span><span class="p">.</span><span class="n">x</span><span class="o">/</span><span class="n">pos_luz</span><span class="p">.</span><span class="n">w</span><span class="p">,</span><span class="w"> </span><span class="n">pos_luz</span><span class="p">.</span><span class="n">y</span><span class="o">/</span><span class="n">pos_luz</span><span class="p">.</span><span class="n">w</span><span class="p">,</span><span class="w"> </span><span class="n">pos_luz</span><span class="p">.</span><span class="n">z</span><span class="o">/</span><span class="n">pos_luz</span><span class="p">.</span><span class="n">w</span><span class="p">};</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="c1">// Convert NDC [-1,1] to shadow map coordinates [0,1023]</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="kt">int</span><span class="w"> </span><span class="n">sx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">ndc_luz</span><span class="p">.</span><span class="n">x</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mf">1.0f</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mf">0.5f</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">1023</span><span class="p">;</span>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="kt">int</span><span class="w"> </span><span class="n">sy</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="mf">1.0f</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">ndc_luz</span><span class="p">.</span><span class="n">y</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mf">0.5f</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">1023</span><span class="p">;</span>
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="kt">float</span><span class="w"> </span><span class="n">depth_luz</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">shadow_map</span><span class="p">[</span><span class="n">sy</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">1024</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">sx</span><span class="p">];</span>
+<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="kt">bool</span><span class="w">  </span><span class="n">sombreado</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">ndc_luz</span><span class="p">.</span><span class="n">z</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="n">depth_luz</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">bias</span><span class="p">);</span>
+</code></pre></div>
+<h2 id="shadow-acne-and-bias">Shadow acne and bias</h2>
+<p>Without bias, <span class="accent-red">shadow acne</span> appears — a pattern of dark speckles across all lit surfaces. The cause is floating point precision. When we project a point into light space and compare its depth to the shadow map, we're comparing the point to an approximation of itself. Tiny rounding errors cause a point to be slightly farther than its own recorded depth — and it incorrectly shadows itself.</p>
+<p>The fix is a small <strong>bias</strong> — not "significantly farther", just a tiny nudge that absorbs the precision error. The bias adapts based on surface angle: surfaces nearly perpendicular to the light have more depth error, so they need a slightly larger bias:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="kt">float</span><span class="w"> </span><span class="n">n_dot_l</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">normal</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">light_dir</span><span class="p">;</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="kt">float</span><span class="w"> </span><span class="n">bias</span><span class="w">    </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">max</span><span class="p">(</span><span class="mf">0.0005f</span><span class="p">,</span><span class="w"> </span><span class="mf">0.01f</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="p">(</span><span class="mf">1.0f</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">n_dot_l</span><span class="p">));</span>
+</code></pre></div>
+<p>Try adjusting the bias in the interactive demo above — too small and acne appears, too large and shadows detach from their casters.</p>
+<h2 id="the-dirty-flag">The dirty flag</h2>
+<p>Recomputing the shadow map every frame is expensive — and unnecessary if <span class="accent-sage">neither the lights nor any object in the scene has moved, rotated, or scaled</span>. The dirty flag skips the shadow pass when nothing has changed:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="kt">bool</span><span class="w"> </span><span class="n">dirty</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span><span class="w">  </span><span class="c1">// recompute this frame</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="c1">// ...after shadow pass:</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="n">luz</span><span class="p">.</span><span class="n">dirty</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">false</span><span class="p">;</span><span class="w">  </span><span class="c1">// skip next frame unless something changes</span>
+</code></pre></div>
+<p>In this project the lights are static, so the shadow map is computed once at startup and never again — a significant performance win.</p>
+<h2 id="spotlight">Spotlight</h2>
+<p>A spotlight is a point light with a cone — only pixels inside the cone receive light, with a smooth falloff at the edges.</p>
+<p><strong>Cone test.</strong> The cone is defined by a direction and an angle. For each lit pixel, we compute the angle between the light-to-pixel direction and the cone's axis using a dot product. If the pixel is outside the cone angle, it receives no light:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="kt">float</span><span class="w"> </span><span class="n">cos_outer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">cosf</span><span class="p">(</span><span class="n">radianes</span><span class="p">(</span><span class="n">l</span><span class="p">.</span><span class="n">cone_angle</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">2</span><span class="p">);</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">light_dir</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">cone_dir</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">cos_outer</span><span class="p">)</span><span class="w"> </span><span class="n">no_aporta</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">true</span><span class="p">;</span>
+</code></pre></div>
+<p><strong>Radial attenuation.</strong> At a hard cone boundary the light would cut off sharply — one pixel fully lit, the next completely dark. To soften the edge, we define two angles: an inner cone (full intensity) and an outer cone (zero intensity), and linearly interpolate between them:</p>
+<div class="arithmatex">\[  {factor} = \frac{\cos\theta_{actual} - \cos\theta_{outer}}{\cos\theta_{inner} - \cos\theta_{outer}} \]</div>
+<p>Where θ_actual is the angle between the light direction and the pixel direction. When the pixel is inside the inner cone the factor is ≥ 1, outside the outer cone it's ≤ 0 — clamped to [0, 1]:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="kt">float</span><span class="w"> </span><span class="n">cos_inner</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="n">cosf</span><span class="p">(</span><span class="n">radianes</span><span class="p">(</span><span class="mi">30</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">2</span><span class="p">);</span><span class="w">           </span><span class="c1">// inner cone — full intensity</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="kt">float</span><span class="w"> </span><span class="n">cos_outer</span><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="n">cosf</span><span class="p">(</span><span class="n">radianes</span><span class="p">(</span><span class="n">l</span><span class="p">.</span><span class="n">cone_angle</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">2</span><span class="p">);</span><span class="w"> </span><span class="c1">// outer cone — zero intensity</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="kt">float</span><span class="w"> </span><span class="n">cos_actual</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">light_dir</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">cone_dir</span><span class="p">;</span>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="kt">float</span><span class="w"> </span><span class="n">factor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">cos_actual</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">cos_outer</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="p">(</span><span class="n">cos_inner</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">cos_outer</span><span class="p">);</span>
+<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="n">factor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">clamp</span><span class="p">(</span><span class="n">factor</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0f</span><span class="p">,</span><span class="w"> </span><span class="mf">1.0f</span><span class="p">);</span>
+</code></pre></div>
+<p><strong>Distance attenuation.</strong> Light also weakens with distance — a standard quadratic falloff:</p>
+<div class="arithmatex">\[  {attenuation} = \frac{1}{1 + k_1 d + k_2 d^2} \]</div>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="kt">float</span><span class="w"> </span><span class="n">d</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">l</span><span class="p">.</span><span class="n">position</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">real_p</span><span class="p">).</span><span class="n">length</span><span class="p">();</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="kt">float</span><span class="w"> </span><span class="n">atenuacion</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="p">(</span><span class="mi">1</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mf">0.05f</span><span class="o">*</span><span class="n">d</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mf">0.01f</span><span class="o">*</span><span class="n">d</span><span class="o">*</span><span class="n">d</span><span class="p">);</span>
+</code></pre></div>
+<p>Both factors multiply the final light intensity: <code>Iluz = l.color * atenuacion * factor</code>.</p>
+<hr />
+<h2 id="bugs">Bugs</h2>
+<div class="bug-card">
+  <div class="bug-header">
+    <span class="bug-tag">BUG</span>
+    <span class="bug-title">Skull appears solid red — background disappears</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-row">
+      <span class="bug-label">What happened</span>
+      <span>The skull rendered as a flat red shape and the room disappeared entirely.</span>
+    </div>
+    <div class="bug-row">
+      <span class="bug-label">Cause</span>
+      <span>The light contribution was being computed with a dot product between color vectors (<code>color * light_color</code> = single float) instead of component-wise multiplication (<code>{cx*lx, cy*ly, cz*lz}</code>).</span>
+    </div>
+    <div class="bug-row">
+      <span class="bug-label">Fix</span>
+      <span>Replace the dot product operator with a component-wise multiply for color calculations.</span>
+    </div>
+  </div>
+</div>
+
+<p><img alt="Shadow devil bug" class="page-img" src="../../assets/img/bug_shadow_devil.gif" /></p>
+<p class="img-caption">Wrong vector operator — skull collapses to solid red, background vanishes.</p>
+
+<div class="bug-card">
+  <div class="bug-header">
+    <span class="bug-tag">BUG</span>
+    <span class="bug-title">No shadows — everything fully lit</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-row">
+      <span class="bug-label">What happened</span>
+      <span>The shadow map was filling correctly but no shadows appeared in the scene.</span>
+    </div>
+    <div class="bug-row">
+      <span class="bug-label">Cause</span>
+      <span>The shadow map was initialized to <code>0</code> instead of <code>HUGE_VALF</code>. A depth of 0 means "something is at distance 0 from the light" — so every point in the scene appeared to be behind something, and the entire scene was marked as lit (the shadow test requires being farther than the stored depth, but nothing can be farther than 0).</span>
+    </div>
+    <div class="bug-row">
+      <span class="bug-label">Fix</span>
+      <span>Initialize the shadow map to <code>HUGE_VALF</code> — positive infinity — so that the first depth value written always wins, exactly like the main z-buffer.</span>
+    </div>
+  </div>
+</div>
+
+<p><img alt="Shadow missing bug" class="page-img" src="../../assets/img/bug_shadow_missing.gif" /></p>
+<p class="img-caption">Shadow test inverted — shadow map fills correctly but nothing casts a shadow.</p>
+
+<div class="bug-card">
+  <div class="bug-header">
+    <span class="bug-tag">BUG</span>
+    <span class="bug-title">Shadow acne across the scene</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-row">
+      <span class="bug-label">What happened</span>
+      <span>Dark speckles covered all lit surfaces, making the scene look noisy.</span>
+    </div>
+    <div class="bug-row">
+      <span class="bug-label">Cause</span>
+      <span>No bias — surfaces were self-shadowing due to floating point precision errors.</span>
+    </div>
+    <div class="bug-row">
+      <span class="bug-label">Fix</span>
+      <span>Add an adaptive bias based on the angle between the surface normal and the light direction.</span>
+    </div>
+  </div>
+</div>
+
+<p><img alt="Shadow acne" class="page-img" src="../../assets/img/bug_shadow_acne.gif" /></p>
+<p class="img-caption">Shadow acne — every lit surface self-shadows due to floating point errors.</p>
+
+<p><img alt="Shadow clean with toon" class="page-img" src="../../assets/img/result_shadow_clean.gif" /></p>
+<p class="img-caption">Shadow acne removed with toon shading — backface culling in the shadow pass helps significantly.</p>
+
+<p><img alt="Shadow clean with bias" class="page-img" src="../../assets/img/result_shadow_clean_bias.gif" /></p>
+<p class="img-caption">Improved bias — Phong shading with clean shadows, no acne, no detachment. (Decided not to use backface culling)</p>
+
+<hr />
+<h2 id="result-the-final-scene">Result — The final scene</h2>
+<p><img alt="Spotlight first" class="page-img" src="../../assets/img/result_spotlight_first.gif" /></p>
+<p class="img-caption">Spotlight working — two light sources illuminating the scene.</p>
+
+<p><img alt="Spotlight with radial falloff" class="page-img" src="../../assets/img/result_spotlight_radial.gif" /></p>
+<p class="img-caption">Spotlight with radial lerp attenuation — soft edge at the cone boundary.</p>
+
+<p><img alt="Final Phong render" class="page-img" src="../../assets/img/result_final_phong.png" /></p>
+<p class="img-caption">Final Phong scene — two skulls, two lights, shadow mapping.</p>
+
+<div style="position:relative; z-index:10; margin: 1rem 0;">
+<video controls style="width:100%; border-radius:8px; border:0.5px solid #2a2520; display:block;">
+  <source src="../../assets/img/result_final_phong_scene.mkv" type="video/mp4">
+</video>
+</div>
+<p class="img-caption">Final Phong scene — free camera, ~30 FPS on CPU.</p>
+
+<p><img alt="Final Toon render" class="page-img" src="../../assets/img/result_final_toon.png" /></p>
+<p class="img-caption">Final Toon scene — same setup, cel-shaded.</p>
+
+<div style="position:relative; z-index:10; margin: 1rem 0;">
+<video controls style="width:100%; border-radius:8px; border:0.5px solid #2a2520; display:block;">
+  <source src="../../assets/img/result_final_toon_scene.mkv" type="video/mp4">
+</video>
+</div>
+<p class="img-caption">Final Toon scene in motion.</p>
+
+<div class="page-nav">
+  <a href="../09_lighting/" class="page-nav-btn prev">← Phong & Toon Shading</a>
+  <a href="../../extras/bugs/" class="page-nav-btn next">Bugs — Hall of Fame →</a>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      <script id="__config" type="application/json">{"base": "../..", "features": ["navigation.tabs", "navigation.top", "navigation.sections", "content.code.copy", "toc.follow"], "search": "../../assets/javascripts/workers/search.973d3a69.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.f55a23d4.min.js"></script>
+      
+        <script src="../../javascripts/mathjax.js"></script>
+      
+        <script src="https://unpkg.com/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+    
+  </body>
+</html>

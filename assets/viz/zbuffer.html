@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Z-Buffer Depth Test</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 100%; height: 100%; background: #0d0c0a; overflow: hidden; font-family: monospace; }
+
+#wrap { width: 100%; height: 100%; display: flex; flex-direction: column; }
+#scene-area { flex: 1; position: relative; min-height: 0; }
+canvas { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
+
+#hud {
+  flex-shrink: 0;
+  padding: 14px 30px;
+  display: flex; gap: 12px; align-items: center; justify-content: center;
+  border-top: 1px solid #1e1a14;
+  background: #0d0c0a;
+}
+.mode-btn {
+  padding: 9px 20px; border-radius: 6px;
+  border: 1px solid #3a3020; background: transparent;
+  color: #c8bba8; font-size: 13px; font-family: monospace;
+  cursor: pointer; transition: all 0.15s;
+}
+.mode-btn:hover { border-color: #4a3a2a; }
+.mode-btn.active {
+  background: #c8894a; color: #0f0e0c; border-color: #c8894a;
+}
+.mode-btn.active:hover { background: #d4a855; }
+.tag-a { color: #f5b460; font-weight: bold; }
+.tag-b { color: #5f96f5; font-weight: bold; }
+.mode-btn.active .tag-a { color: #4a2010; }
+.mode-btn.active .tag-b { color: #102540; }
+</style>
+</head>
+<body>
+<div id="wrap">
+
+  <div id="scene-area">
+    <canvas id="canvas"></canvas>
+  </div>
+
+  <div id="hud">
+    <button class="mode-btn" id="btnPainterAB">Painter &nbsp;<span class="tag-a">A</span> → <span class="tag-b">B</span></button>
+    <button class="mode-btn" id="btnPainterBA">Painter &nbsp;<span class="tag-b">B</span> → <span class="tag-a">A</span></button>
+    <button class="mode-btn active" id="btnZBuffer">Z-buffer</button>
+  </div>
+
+</div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const $ = id => document.getElementById(id);
+
+/* ── Virtual screen ─────────────────────────────────── */
+const W = 64, H = 40;
+const zBuffer = new Float32Array(W * H);
+const colorBuffer = new Array(W * H);
+
+let mode = 'zbuffer';
+
+/* ── Two triangles that cross in 3D ─────────────────── */
+const triA = [
+  { x:  8, y:  8, z: 1.0 },
+  { x: 54, y: 12, z: 4.5 },
+  { x: 30, y: 33, z: 2.0 }
+];
+const triB = [
+  { x: 14, y:  6, z: 4.5 },
+  { x: 58, y: 30, z: 1.0 },
+  { x:  6, y: 28, z: 2.5 }
+];
+
+/* ── Depth → colour gradients ───────────────────────── */
+function colorA(z) {
+  const t = Math.max(0, Math.min(1, (z - 1) / 3.5));
+  const r = Math.round(245 - t * 140);
+  const g = Math.round(180 - t * 130);
+  const b = Math.round(95  - t * 75);
+  return `rgb(${r},${g},${b})`;
+}
+function colorB(z) {
+  const t = Math.max(0, Math.min(1, (z - 1) / 3.5));
+  const r = Math.round(95  - t * 70);
+  const g = Math.round(150 - t * 105);
+  const b = Math.round(245 - t * 140);
+  return `rgb(${r},${g},${b})`;
+}
+
+/* ── Rasterizer (edge-function / barycentric) ───────── */
+function edgeFn(ax, ay, bx, by, px, py) {
+  return (px - ax) * (by - ay) - (py - ay) * (bx - ax);
+}
+
+function rasterize(tri, colorFn, useZ) {
+  const [v0, v1, v2] = tri;
+  const area = edgeFn(v0.x, v0.y, v1.x, v1.y, v2.x, v2.y);
+  if (area === 0) return;
+
+  const minX = Math.max(0,     Math.floor(Math.min(v0.x, v1.x, v2.x)));
+  const maxX = Math.min(W - 1, Math.ceil (Math.max(v0.x, v1.x, v2.x)));
+  const minY = Math.max(0,     Math.floor(Math.min(v0.y, v1.y, v2.y)));
+  const maxY = Math.min(H - 1, Math.ceil (Math.max(v0.y, v1.y, v2.y)));
+
+  for (let y = minY; y <= maxY; y++) {
+    for (let x = minX; x <= maxX; x++) {
+      const px = x + 0.5, py = y + 0.5;
+      const w0 = edgeFn(v1.x, v1.y, v2.x, v2.y, px, py);
+      const w1 = edgeFn(v2.x, v2.y, v0.x, v0.y, px, py);
+      const w2 = edgeFn(v0.x, v0.y, v1.x, v1.y, px, py);
+
+      const inside = area > 0
+        ? (w0 >= 0 && w1 >= 0 && w2 >= 0)
+        : (w0 <= 0 && w1 <= 0 && w2 <= 0);
+      if (!inside) continue;
+
+      const b0 = w0 / area, b1 = w1 / area, b2 = w2 / area;
+      const z = b0 * v0.z + b1 * v1.z + b2 * v2.z;
+      const idx = y * W + x;
+
+      if (!useZ || z < zBuffer[idx]) {
+        zBuffer[idx] = z;
+        colorBuffer[idx] = colorFn(z);
+      }
+    }
+  }
+}
+
+function render() {
+  zBuffer.fill(Infinity);
+  for (let i = 0; i < colorBuffer.length; i++) colorBuffer[i] = null;
+
+  if (mode === 'painter-ab') {
+    rasterize(triA, colorA, false);
+    rasterize(triB, colorB, false);
+  } else if (mode === 'painter-ba') {
+    rasterize(triB, colorB, false);
+    rasterize(triA, colorA, false);
+  } else {
+    rasterize(triA, colorA, true);
+    rasterize(triB, colorB, true);
+  }
+  draw();
+}
+
+/* ── Draw the pixel grid ────────────────────────────── */
+function draw() {
+  const cw = canvas.clientWidth;
+  const ch = canvas.clientHeight;
+  ctx.fillStyle = '#0d0c0a';
+  ctx.fillRect(0, 0, cw, ch);
+
+  const blockSize = Math.floor(Math.min(cw * 0.95 / W, ch * 0.92 / H));
+  const gridW = blockSize * W;
+  const gridH = blockSize * H;
+  const offsetX = (cw - gridW) / 2;
+  const offsetY = (ch - gridH) / 2;
+
+  // Background of the pixel area
+  ctx.fillStyle = '#161310';
+  ctx.fillRect(offsetX, offsetY, gridW, gridH);
+
+  // Pixels
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const c = colorBuffer[y * W + x];
+      if (c) {
+        ctx.fillStyle = c;
+        ctx.fillRect(offsetX + x * blockSize, offsetY + y * blockSize, blockSize, blockSize);
+      }
+    }
+  }
+
+  // Subtle outer border
+  ctx.strokeStyle = '#3a3020';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(offsetX + 0.5, offsetY + 0.5, gridW, gridH);
+}
+
+/* ── Mode buttons ───────────────────────────────────── */
+function setMode(m) {
+  mode = m;
+  $('btnPainterAB').classList.toggle('active', m === 'painter-ab');
+  $('btnPainterBA').classList.toggle('active', m === 'painter-ba');
+  $('btnZBuffer').classList.toggle  ('active', m === 'zbuffer');
+  render();
+}
+$('btnPainterAB').addEventListener('click', () => setMode('painter-ab'));
+$('btnPainterBA').addEventListener('click', () => setMode('painter-ba'));
+$('btnZBuffer').addEventListener  ('click', () => setMode('zbuffer'));
+
+/* ── Resize ─────────────────────────────────────────── */
+function resize() {
+  const dpr = Math.min(devicePixelRatio || 1, 2);
+  const rect = canvas.getBoundingClientRect();
+  canvas.width  = Math.max(1, Math.floor(rect.width  * dpr));
+  canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.imageSmoothingEnabled = false;
+  draw();
+}
+window.addEventListener('resize', resize);
+
+resize();
+render();
+</script>
+</body>
+</html>
