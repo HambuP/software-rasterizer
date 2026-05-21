@@ -6,7 +6,7 @@
 
 **Built from scratch in C++ using SDL3 — no engines, no graphics APIs, no shortcuts.**
 
-<a href="https://hambup.me/rasterizer">
+<a href="https://hambup.me">
   <img src="https://img.shields.io/badge/Documentation-hambup.me%2Frasterizer-c8894a?style=for-the-badge&logoColor=white"/>
 </a>
 &nbsp;
@@ -65,7 +65,7 @@ Requires SDL3 installed. Set the working directory to the project root in your r
 
 ## Documentation
 
-The full pipeline is documented step by step at **[hambup.me/rasterizer](https://hambup.me/rasterizer)** — every section covers the math, the code, and what broke along the way.
+The full pipeline is documented step by step at **[hambup.me/rasterizer](https://hambup.me)** — every section covers the math, the code, and what broke along the way.
 
 ## License
 
