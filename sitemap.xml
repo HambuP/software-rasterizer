@@ -2,62 +2,62 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://hambup.me/rasterizer/</loc>
-         <lastmod>2026-05-20</lastmod>
+         <lastmod>2026-05-21</lastmod>
     </url>
     <url>
          <loc>https://hambup.me/rasterizer/extras/bugs/</loc>
-         <lastmod>2026-05-20</lastmod>
+         <lastmod>2026-05-21</lastmod>
     </url>
     <url>
          <loc>https://hambup.me/rasterizer/extras/math_primer/</loc>
-         <lastmod>2026-05-20</lastmod>
+         <lastmod>2026-05-21</lastmod>
     </url>
     <url>
          <loc>https://hambup.me/rasterizer/extras/process/</loc>
-         <lastmod>2026-05-20</lastmod>
+         <lastmod>2026-05-21</lastmod>
     </url>
     <url>
          <loc>https://hambup.me/rasterizer/extras/references/</loc>
-         <lastmod>2026-05-20</lastmod>
+         <lastmod>2026-05-21</lastmod>
     </url>
     <url>
          <loc>https://hambup.me/rasterizer/pipeline/01_framebuffer/</loc>
-         <lastmod>2026-05-20</lastmod>
+         <lastmod>2026-05-21</lastmod>
     </url>
     <url>
          <loc>https://hambup.me/rasterizer/pipeline/02_barycentric/</loc>
-         <lastmod>2026-05-20</lastmod>
+         <lastmod>2026-05-21</lastmod>
     </url>
     <url>
          <loc>https://hambup.me/rasterizer/pipeline/03_zbuffer/</loc>
-         <lastmod>2026-05-20</lastmod>
+         <lastmod>2026-05-21</lastmod>
     </url>
     <url>
          <loc>https://hambup.me/rasterizer/pipeline/04_matrices/</loc>
-         <lastmod>2026-05-20</lastmod>
+         <lastmod>2026-05-21</lastmod>
     </url>
     <url>
          <loc>https://hambup.me/rasterizer/pipeline/05_parser/</loc>
-         <lastmod>2026-05-20</lastmod>
+         <lastmod>2026-05-21</lastmod>
     </url>
     <url>
          <loc>https://hambup.me/rasterizer/pipeline/06_uv/</loc>
-         <lastmod>2026-05-20</lastmod>
+         <lastmod>2026-05-21</lastmod>
     </url>
     <url>
          <loc>https://hambup.me/rasterizer/pipeline/07_culling/</loc>
-         <lastmod>2026-05-20</lastmod>
+         <lastmod>2026-05-21</lastmod>
     </url>
     <url>
          <loc>https://hambup.me/rasterizer/pipeline/08_camera/</loc>
-         <lastmod>2026-05-20</lastmod>
+         <lastmod>2026-05-21</lastmod>
     </url>
     <url>
          <loc>https://hambup.me/rasterizer/pipeline/09_lighting/</loc>
-         <lastmod>2026-05-20</lastmod>
+         <lastmod>2026-05-21</lastmod>
     </url>
     <url>
          <loc>https://hambup.me/rasterizer/pipeline/10_shadows/</loc>
-         <lastmod>2026-05-20</lastmod>
+         <lastmod>2026-05-21</lastmod>
     </url>
 </urlset>
