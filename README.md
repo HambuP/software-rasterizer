@@ -6,15 +6,17 @@
 
 **Built from scratch in C++ using SDL3 — no engines, no graphics APIs, no shortcuts.**
 
-<a href="https://hambup.me/rasterizer">
+<a href="https://hambup.me">
   <img src="https://img.shields.io/badge/Documentation-hambup.me%2Frasterizer-c8894a?style=for-the-badge&logoColor=white" alt="Documentation"/>
 </a>
 &nbsp;
-<img src="https://img.shields.io/badge/C%2B%2B-17-c8894a?style=for-the-badge&logo=cplusplus&logoColor=white"/>
+<a href="https://isocpp.org/">
+  <img src="https://img.shields.io/badge/C%2B%2B-17-c8894a?style=for-the-badge&logo=cplusplus&logoColor=white"/>
+</a>
 &nbsp;
-<img src="https://img.shields.io/badge/SDL3-blue?style=for-the-badge"/>
-&nbsp;
-<img src="https://img.shields.io/badge/Platform-Windows-c8894a?style=for-the-badge"/>
+<a href="https://wiki.libsdl.org/SDL3/FrontPage">
+  <img src="https://img.shields.io/badge/SDL3-wiki-555?style=for-the-badge"/>
+</a>
 
 </div>
 
@@ -24,7 +26,7 @@
 
 A fully CPU-rendered 3D rasterizer — every pixel computed in plain C++, no GPU involved. The full pipeline (transformations, projection, rasterization, lighting, shadows) is implemented from scratch using only SDL3 for the window.
 
-> **Note:** Triangle clipping (handling geometry that crosses the near/far planes) is not implemented — objects that move behind the camera will break. Everything else in the pipeline is complete.
+> **Note:** Triangle clipping is not implemented — geometry that crosses the camera's near plane will break. Everything else in the pipeline is complete.
 
 ## Features
 
@@ -60,7 +62,7 @@ Requires SDL3 installed. Set the working directory to the project root in your r
 
 ## Documentation
 
-The full pipeline is documented step by step at **[hambup.me/rasterizer](https://hambup.me/rasterizer)** — every section covers the math, the code, and what broke along the way.
+The full pipeline is documented step by step at **[hambup.me/rasterizer](https://hambup.me)** — every section covers the math, the code, and what broke along the way.
 
 ## License
 
