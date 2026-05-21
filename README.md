@@ -6,8 +6,8 @@
 
 **Built from scratch in C++ using SDL3 — no engines, no graphics APIs, no shortcuts.**
 
-<a href="https://hambup.me">
-  <img src="https://img.shields.io/badge/Documentation-hambup.me%2Frasterizer-c8894a?style=for-the-badge&logoColor=white" alt="Documentation"/>
+<a href="https://hambup.me/rasterizer">
+  <img src="https://img.shields.io/badge/Documentation-hambup.me%2Frasterizer-c8894a?style=for-the-badge&logoColor=white"/>
 </a>
 &nbsp;
 <a href="https://isocpp.org/">
@@ -26,8 +26,6 @@
 
 A fully CPU-rendered 3D rasterizer — every pixel computed in plain C++, no GPU involved. The full pipeline (transformations, projection, rasterization, lighting, shadows) is implemented from scratch using only SDL3 for the window.
 
-> **Note:** Triangle clipping is not implemented — geometry that crosses the camera's near plane will break. Everything else in the pipeline is complete.
-
 ## Features
 
 | | |
@@ -44,6 +42,11 @@ A fully CPU-rendered 3D rasterizer — every pixel computed in plain C++, no GPU
 | **Shadows** | Shadow mapping · adaptive bias · spotlight perspective projection |
 | **Threads** | Multithreaded rasterizer across all CPU cores |
 
+## Known limitations
+
+- ❌ Triangle clipping not implemented — geometry crossing the near plane will break
+- ❌ Z-axis frustum culling not implemented — no clipping for far/near planes
+
 ## Stack
 
 `C++17` · `SDL3` · `CMake` · `CLion`
@@ -58,11 +61,11 @@ cmake ..
 cmake --build .
 ```
 
-Requires SDL3 installed. Set the working directory to the project root in your run configuration.
+Requires SDL3 installed. Set the working directory to the project root in your run configuration before running.
 
 ## Documentation
 
-The full pipeline is documented step by step at **[hambup.me/rasterizer](https://hambup.me)** — every section covers the math, the code, and what broke along the way.
+The full pipeline is documented step by step at **[hambup.me/rasterizer](https://hambup.me/rasterizer)** — every section covers the math, the code, and what broke along the way.
 
 ## License
 
