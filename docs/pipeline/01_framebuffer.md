@@ -111,8 +111,7 @@ for (int i = minx; i <= maxx; i++) {
 }
 ```
 
-The three edge values (e1, e2, e3) are more than just an inside/outside test — their ratios tell you exactly <span class="accent-gold">*how far* the point is from each vertex</span>. These are the **barycentric coordinates**: three weights (λ₁, λ₂, λ₃) that describe any point inside the triangle as a <span class="accent-red">weighted blend of its three corners</span>. **Interpolating** — computing a smooth value between the three vertices for every pixel in between — is what makes <span class="accent-sage">color gradients, depth, and UV texturing</span> possible. The demo below gives an intuition before the next section covers it in full.
-
+The three edge values (e1, e2, e3) are more than just an inside/outside test. Their ratios — e1/(e1+e2+e3), e2/(e1+e2+e3), e3/(e1+e2+e3) — tell you exactly <span class="accent-gold">how far the point is from each vertex</span>. These normalized ratios are the barycentric coordinates (λ₁, λ₂, λ₃): three weights that describe any point inside the triangle as a <span class="accent-red">weighted blend of its three corners</span>. Interpolating — computing a smooth value between the three vertices for every pixel in between — is what makes <span class="accent-sage">color gradients, depth, and UV texturing</span> possible. The demo below gives an intuition, and the next section covers how and why they work in full.
 <div class="viz-wrapper">
   <div class="viz-header">
     <span class="viz-label">● Interactive</span>

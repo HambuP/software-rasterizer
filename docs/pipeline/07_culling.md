@@ -41,6 +41,8 @@ if (v1.y >  v1.w && v2.y >  v2.w && v3.y >  v3.w) continue; // top
 
 Why ±w? Because after the perspective divide, NDC x = x_clip / w. For a point to be inside the screen, NDC x must be in [−1, 1], which means x_clip / w ∈ [−1, 1], which means <span class="accent-sage">−w ≤ x_clip ≤ w</span>. <span class="accent-sage">Checking this in clip space avoids the division entirely.</span>
 
+> **Note:** the same test applies to Z — clipping triangles that are entirely behind the near plane or beyond the far plane. This wasn't implemented here since none of the test scenes involved objects at extreme depth ranges, but it follows the exact same logic as the X/Y checks above.
+
 ## Multithreading
 
 Backface and frustum culling reduce the number of triangles to process. But the rasterization of the remaining triangles is still sequential — one pixel at a time, on a single CPU core.
@@ -55,9 +57,9 @@ Modern CPUs have multiple cores — independent processing units that can execut
   <iframe src="../../assets/viz/multithreading.html" width="100%" height="380" frameborder="0"></iframe>
 </div>
 
-**Step 1 — Divide the framebuffer into strips.** Before launching any threads, we precompute the row range each thread will own. Each strip covers `lines_per_thread` rows, and the last one absorbs any remainder:
+**Step 1 — Divide the framebuffer into strips.** Before launching any threads, we precompute the row range each thread will own. Each strip covers `rows_per_thread` rows, and the last one absorbs any remainder:
 
-\[ 	{strip}_(start,end) = [\, i \cdot 	{lpt},\; (i+1) \cdot 	{lpt} - 1 \,] \]
+\[ 	ext{strip}_i = [\, i \cdot 	ext{lpt},\; (i+1) \cdot 	ext{lpt} - 1 \,] \]
 
 ```cpp
 unsigned int num_cores  = std::thread::hardware_concurrency();
@@ -88,7 +90,7 @@ for (auto& t : threads_list) {
 }
 ```
 
-Here are all the optimizations paying off:
+Here are all the optimizations paying off — the Jeep at ~300 FPS stable:
 
 ![Multithreading benchmark](../assets/img/result_multithreading.gif){ .page-img }
 <p class="img-caption">From nearly unusable with complex models to ~300 FPS — backface culling, frustum culling, and multithreading combined.</p>
