@@ -1,34 +1,55 @@
-# 3D Software Rasterizer in C++ using SDL3
+<div align="center">
 
-A fully software-rendered 3D rasterizer built from scratch in C++ — no OpenGL, no Vulkan, no graphics APIs. Every mathematical operation runs on the CPU in plain code.
+<img src="docs/assets/img/hero.png" alt="3D Software Rasterizer" width="100%"/>
 
-**[Documentation → hambup.me/rasterizer](https://hambup.me/rasterizer)**
+# 3D Software Rasterizer
 
-![Final render](docs/assets/img/result_toon_vs_phong.gif)
+**Built from scratch in C++ using SDL3 — no engines, no graphics APIs, no shortcuts.**
+
+<a href="https://hambup.me">
+  <img src="https://img.shields.io/badge/Documentation-hambup.me%2Frasterizer-c8894a?style=for-the-badge&logoColor=white"/>
+</a>
+&nbsp;
+<a href="https://isocpp.org/">
+  <img src="https://img.shields.io/badge/C%2B%2B-17-c8894a?style=for-the-badge&logo=cplusplus&logoColor=white"/>
+</a>
+&nbsp;
+<a href="https://wiki.libsdl.org/SDL3/FrontPage">
+  <img src="https://img.shields.io/badge/SDL3-wiki-555?style=for-the-badge"/>
+</a>
+
+</div>
 
 ---
 
-## What it does
+## What it is
 
-- Full MVP pipeline — Model, View, Projection matrices derived from scratch
-- OBJ + BMP parser — zero external libraries beyond SDL3
-- Perspective-correct UV texturing
-- Phong lighting — ambient, diffuse, specular
-- Toon / cel shading
-- Shadow mapping — directional light (orthographic) + spotlight (perspective)
-- Backface culling + frustum culling
-- Multithreaded rasterizer (~400 FPS on a Jeep model)
-- Free WASD camera with mouse look — yaw, pitch
+A fully CPU-rendered 3D rasterizer — every pixel computed in plain C++, no GPU involved. The full pipeline (transformations, projection, rasterization, lighting, shadows) is implemented from scratch using only SDL3 for the window.
 
-## Stack
+## Features
 
 | | |
 |---|---|
-| Language | C++17 |
-| Windowing | SDL3 |
-| Build | CMake |
-| IDE | CLion |
-| Dependencies | SDL3 only |
+| **Math** | Custom Vec2 · Vec3 · Vec4 · Mat4 from scratch |
+| **Pipeline** | Full MVP — Model · View · Projection matrices derived from first principles |
+| **Rasterization** | Barycentric coordinates · perspective-correct interpolation |
+| **Depth** | Z-buffer with per-pixel depth testing |
+| **Parsing** | OBJ + BMP parser — zero external libraries |
+| **Camera** | Free WASD + mouse look · yaw · pitch |
+| **Textures** | UV mapping · perspective-correct sampling |
+| **Culling** | Backface culling · frustum culling (X/Y planes) |
+| **Lighting** | Phong shading · directional + spot lights · toon shading |
+| **Shadows** | Shadow mapping · adaptive bias · spotlight perspective projection |
+| **Threads** | Multithreaded rasterizer across all CPU cores |
+
+## Known limitations
+
+- ❌ Triangle clipping not implemented — geometry crossing the near plane will break
+- ❌ Z-axis frustum culling not implemented — no clipping for far/near planes
+
+## Stack
+
+`C++17` · `SDL3` · `CMake` · `CLion`
 
 ## Build
 
@@ -40,11 +61,11 @@ cmake ..
 cmake --build .
 ```
 
-Requires SDL3 installed. Set the working directory to the project root in your IDE before running.
+Requires SDL3 installed. Set the working directory to the project root in your run configuration before running.
 
 ## Documentation
 
-The full pipeline is documented step by step at **[hambup.me/rasterizer](https://hambup.me/rasterizer)** — every section explains the math, the code, and what broke along the way.
+The full pipeline is documented step by step at **[hambup.me/rasterizer](https://hambup.me)** — every section covers the math, the code, and what broke along the way.
 
 ## License
 
