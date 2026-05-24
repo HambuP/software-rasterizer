@@ -504,8 +504,7 @@ public:
                 const Material* mat = mesh.get_material(nom_mat);
 
                 //hacemos fan triangulation, para soportar caras con más de 3 vertices
-                for (int i=1; i < face.v_indices.size()-1;i++){
-
+                for (int i=1; i < face.v_indices.size()-1;i++) {
                     //obtenemos las normales, restando uno porque obj inicia en 1
                     Vec3 nor1 = normals[face.n_indices[0]-1];
                     Vec3 nor2 = normals[face.n_indices[i]-1];
@@ -535,49 +534,219 @@ public:
                     Vec4 ver2_clip = MVP * Vec4{ver2.x, ver2.y, ver2.z, 1.0f};
                     Vec4 ver3_clip = MVP * Vec4{ver3.x, ver3.y, ver3.z, 1.0f};
 
+
                     //frustum culling
                     //si los tres vertices al tiempo afuera de un mismo lado, no renderizar
                     if (ver1_clip.x < -ver1_clip.w && ver2_clip.x < -ver2_clip.w && ver3_clip.x < -ver3_clip.w) continue;
                     if (ver1_clip.x > ver1_clip.w && ver2_clip.x > ver2_clip.w && ver3_clip.x > ver3_clip.w) continue;
                     if (ver1_clip.y < -ver1_clip.w && ver2_clip.y < -ver2_clip.w && ver3_clip.y < -ver3_clip.w) continue;
                     if (ver1_clip.y > ver1_clip.w && ver2_clip.y > ver2_clip.w && ver3_clip.y > ver3_clip.w) continue;
+                    if (ver1_clip.z < -ver1_clip.w && ver2_clip.z < -ver2_clip.w && ver3_clip.z < -ver3_clip.w) continue;
+                    if (ver1_clip.z > ver1_clip.w && ver2_clip.z > ver2_clip.w && ver3_clip.z > ver3_clip.w) continue;
 
-                    //cada vertice a ndc space, normalized device coordinates
-                    Vec3 ndc1 = {ver1_clip.x / ver1_clip.w, ver1_clip.y / ver1_clip.w, ver1_clip.z / ver1_clip.w};
-                    Vec3 ndc2 = {ver2_clip.x / ver2_clip.w, ver2_clip.y / ver2_clip.w, ver2_clip.z / ver2_clip.w};
-                    Vec3 ndc3 = {ver3_clip.x / ver3_clip.w, ver3_clip.y / ver3_clip.w, ver3_clip.z / ver3_clip.w};
+                    int puntos_afuera = 0;
+                    bool case1 = false;
+                    bool case2 = false;
+                    bool case3 = false;
 
-                    //cada vertice a screen space
-                    //+1 para tenerlo entre 0 y 2, restamos 1 porque pantalla va hasta width-1 y restamos y porque ndc arriba es 1, 0 en screen space
-                    Vec2 real1 = {(1 + ndc1.x) * (WIDTH -1)/ 2, (1 - ndc1.y) * (HEIGHT -1)/ 2};
-                    Vec2 real2 = {(1 + ndc2.x) * (WIDTH -1)/ 2, (1 - ndc2.y) * (HEIGHT -1)/ 2};
-                    Vec2 real3 = {(1 + ndc3.x) * (WIDTH -1)/ 2, (1 - ndc3.y) * (HEIGHT -1)/ 2};
+                    if (ver1_clip.z < -ver1_clip.w) puntos_afuera += 1, case1 = true;
+                    if (ver2_clip.z < -ver2_clip.w) puntos_afuera += 1, case2 = true;
+                    if (ver3_clip.z < -ver3_clip.w) puntos_afuera += 1, case3 = true;
 
-                    //backface culling, todas las areas tienen que tener el mismo signo
-                    float area = edge_function(real2-real1, real3-real1);
-                    if (area >= 0) continue;
+                    std::vector<Vec4> nor = {nor1real, nor2real, nor3real};
+                    std::vector<Vec4> ver = {ver1real, ver2real, ver3real};
+                    std::vector<Vec2> uv = {uv1, uv2, uv3};
+                    std::vector<Vec4> clips = {ver1_clip, ver2_clip, ver3_clip};
 
-                    //mandamos las coords 2D con su profundidad para interpolar por profundidad
-                    Vec3 p1 = {real1.x, real1.y, ver1_clip.w};
-                    Vec3 p2 = {real2.x, real2.y, ver2_clip.w};
-                    Vec3 p3 = {real3.x, real3.y, ver3_clip.w};
+                    //ahora, el triangle clipping, tres casos
+                    //caso 1, solo pasa un vertice el near plane
+                    if (puntos_afuera == 1) {
 
-                    //si no hay textura, no matar el código con nullptr
-                    static const std::vector<Col> empty_texture;
+                        int index_bueno1;
+                        int index_bueno2;
+                        int index_malo;
 
-                    triangulos.push_back({p1,p2,p3,
-                        Vec3{ver1real.x,ver1real.y,ver1real.z},
-                        Vec3{ver2real.x,ver2real.y,ver2real.z},
-                        Vec3{ver3real.x,ver3real.y,ver3real.z},
-                        uv1,uv2,uv3,
-                        Vec3{nor1real.x,nor1real.y,nor1real.z},
-                        Vec3{nor2real.x,nor2real.y,nor2real.z},
-                        Vec3{nor3real.x,nor3real.y,nor3real.z},
-                        mat ? &mat->texture : &empty_texture,
-                        mat ? mat->width : 0,
-                        mat ? mat->height : 0,
-                        mat->shininess,mat->specular, mat->ambient, mat->diffuse,
-                        shading_mode}); //mandamos el triangulo a la lista de triangulos epicamente
+                        if (case1) index_malo = 0, index_bueno1 = 1, index_bueno2 = 2;
+                        if (case2) index_malo = 1, index_bueno1 = 2, index_bueno2 = 0;
+                        if (case3) index_malo = 2, index_bueno1 = 0, index_bueno2 = 1;
+
+                        float delta_l = (clips[index_bueno1].z + clips[index_bueno1].w) / ((clips[index_bueno1].z + clips[index_bueno1].w) - (clips[index_malo].z + clips[index_malo].w));
+                        float delta_r = (clips[index_bueno2].z + clips[index_bueno2].w) / ((clips[index_bueno2].z + clips[index_bueno2].w) - (clips[index_malo].z + clips[index_malo].w));
+
+                        Vec4 nuevo_1 = clips[index_bueno1]*(1-delta_l) + clips[index_malo]*delta_l;
+                        Vec4 nuevo_2 = clips[index_bueno2]*(1-delta_r) + clips[index_malo]*delta_r;
+
+                        Vec2 nuevo_uv_1 = uv[index_bueno1]*(1-delta_l) + uv[index_malo]*delta_l;
+                        Vec2 nuevo_uv_2 = uv[index_bueno2]*(1-delta_r) + uv[index_malo]*delta_r;
+                        Vec4 nuevo_nor_1 = nor[index_bueno1]*(1-delta_l) + nor[index_malo]*delta_l;
+                        Vec4 nuevo_nor_2 = nor[index_bueno2]*(1-delta_r) + nor[index_malo]*delta_r;
+                        Vec4 nuevo_rel_1 = ver[index_bueno1]*(1-delta_l) + ver[index_malo]*delta_l;
+                        Vec4 nuevo_rel_2 = ver[index_bueno2]*(1-delta_r) + ver[index_malo]*delta_r;
+
+                        //cada vertice a ndc space, normalized device coordinates
+                        Vec3 ndc1 = {clips[index_bueno1].x / clips[index_bueno1].w, clips[index_bueno1].y / clips[index_bueno1].w, clips[index_bueno1].z / clips[index_bueno1].w};
+                        Vec3 ndc2 = {clips[index_bueno2].x / clips[index_bueno2].w, clips[index_bueno2].y / clips[index_bueno2].w, clips[index_bueno2].z / clips[index_bueno2].w};
+                        Vec3 ndc3 = {nuevo_1.x / nuevo_1.w, nuevo_1.y / nuevo_1.w, nuevo_1.z / nuevo_1.w};
+                        Vec3 ndc4 = {nuevo_2.x / nuevo_2.w, nuevo_2.y / nuevo_2.w, nuevo_2.z / nuevo_2.w};
+
+                        //cada vertice a screen space
+                        //+1 para tenerlo entre 0 y 2, restamos 1 porque pantalla va hasta width-1 y restamos y porque ndc arriba es 1, 0 en screen space
+                        Vec2 real1 = {(1 + ndc1.x) * (WIDTH -1)/ 2, (1 - ndc1.y) * (HEIGHT -1)/ 2};
+                        Vec2 real2 = {(1 + ndc2.x) * (WIDTH -1)/ 2, (1 - ndc2.y) * (HEIGHT -1)/ 2};
+                        Vec2 real3 = {(1 + ndc3.x) * (WIDTH -1)/ 2, (1 - ndc3.y) * (HEIGHT -1)/ 2};
+                        Vec2 real4 = {(1 + ndc4.x) * (WIDTH -1)/ 2, (1 - ndc4.y) * (HEIGHT -1)/ 2};
+
+                        //backface culling, todas las areas tienen que tener el mismo signo
+                        //float area1 = edge_function(real4-real1, real3-real1);
+                        //if (area1 >= 0) continue;
+//
+                        //float area2 = edge_function(real2-real1, real4-real1);
+                        //if (area2 >= 0) continue;
+
+                        //mandamos las coords 2D con su profundidad para interpolar por profundidad
+                        Vec3 p1 = {real1.x, real1.y, clips[index_bueno1].w};
+                        Vec3 p2 = {real2.x, real2.y, clips[index_bueno2].w};
+                        Vec3 p3 = {real3.x, real3.y, nuevo_1.w};
+                        Vec3 p4 = {real4.x, real4.y, nuevo_2.w};
+
+
+                        //si no hay textura, no matar el código con nullptr
+                        static const std::vector<Col> empty_texture;
+
+                        triangulos.push_back({p1,p4,p3,
+                            Vec3{ver[index_bueno1].x,ver[index_bueno1].y,ver[index_bueno1].z},
+                            Vec3{nuevo_rel_2.x,nuevo_rel_2.y,nuevo_rel_2.z},
+                            Vec3{nuevo_rel_1.x,nuevo_rel_1.y,nuevo_rel_1.z},
+                            uv[index_bueno1],nuevo_uv_2,nuevo_uv_1,
+                            Vec3{nor[index_bueno1].x,nor[index_bueno1].y,nor[index_bueno1].z},
+                            Vec3{nuevo_nor_2.x,nuevo_nor_2.y,nuevo_nor_2.z},
+                            Vec3{nuevo_nor_1.x,nuevo_nor_1.y,nuevo_nor_1.z},
+                            mat ? &mat->texture : &empty_texture,
+                            mat ? mat->width : 0,
+                            mat ? mat->height : 0,
+                            mat->shininess,mat->specular, mat->ambient, mat->diffuse,
+                            shading_mode}); //mandamos el triangulo a la lista de triangulos epicament
+
+                        triangulos.push_back({p1,p2,p4,
+                            Vec3{ver[index_bueno1].x,ver[index_bueno1].y,ver[index_bueno1].z},
+                            Vec3{ver[index_bueno2].x,ver[index_bueno2].y,ver[index_bueno2].z},
+                            Vec3{nuevo_rel_2.x,nuevo_rel_2.y,nuevo_rel_2.z},
+                            uv[index_bueno1],uv[index_bueno2],nuevo_uv_2,
+                            Vec3{nor[index_bueno1].x,nor[index_bueno1].y,nor[index_bueno1].z},
+                            Vec3{nor[index_bueno2].x,nor[index_bueno2].y,nor[index_bueno2].z},
+                            Vec3{nuevo_nor_2.x,nuevo_nor_2.y,nuevo_nor_2.z},
+                            mat ? &mat->texture : &empty_texture,
+                            mat ? mat->width : 0,
+                            mat ? mat->height : 0,
+                            mat->shininess,mat->specular, mat->ambient, mat->diffuse,
+                            shading_mode}); //mandamos el triangulo a la lista de triangulos epicament
+
+                    }
+
+
+                    //caso 2, pasan dos vertices el near plane
+                    if (puntos_afuera == 2) {
+
+                        int index_bueno;
+                        int index_malo1;
+                        int index_malo2;
+
+                        if (case1 && case2) index_malo1 = 1, index_malo2 = 0, index_bueno = 2;
+                        if (case2 && case3) index_malo1 = 2, index_malo2 = 1, index_bueno = 0;
+                        if (case3 && case1) index_malo1 = 0, index_malo2 = 2, index_bueno = 1;
+
+                        float delta_l = (clips[index_bueno].z + clips[index_bueno].w) / ((clips[index_bueno].z + clips[index_bueno].w) - (clips[index_malo1].z + clips[index_malo1].w));
+                        float delta_r = (clips[index_bueno].z + clips[index_bueno].w) / ((clips[index_bueno].z + clips[index_bueno].w) - (clips[index_malo2].z + clips[index_malo2].w));
+
+                        Vec4 nuevo_1 = clips[index_bueno]*(1-delta_l) + clips[index_malo1]*delta_l;
+                        Vec4 nuevo_2 = clips[index_bueno]*(1-delta_r) + clips[index_malo2]*delta_r;
+
+                        Vec2 nuevo_uv_1 = uv[index_bueno]*(1-delta_l) + uv[index_malo1]*delta_l;
+                        Vec2 nuevo_uv_2 = uv[index_bueno]*(1-delta_r) + uv[index_malo2]*delta_r;
+                        Vec4 nuevo_nor_1 = nor[index_bueno]*(1-delta_l) + nor[index_malo1]*delta_l;
+                        Vec4 nuevo_nor_2 = nor[index_bueno]*(1-delta_r) + nor[index_malo2]*delta_r;
+                        Vec4 nuevo_rel_1 = ver[index_bueno]*(1-delta_l) + ver[index_malo1]*delta_l;
+                        Vec4 nuevo_rel_2 = ver[index_bueno]*(1-delta_r) + ver[index_malo2]*delta_r;
+
+                         //cada vertice a ndc space, normalized device coordinates
+                        Vec3 ndc1 = {clips[index_bueno].x / clips[index_bueno].w, clips[index_bueno].y / clips[index_bueno].w, clips[index_bueno].z / clips[index_bueno].w};
+                        Vec3 ndc2 = {nuevo_1.x / nuevo_1.w, nuevo_1.y / nuevo_1.w, nuevo_1.z / nuevo_1.w};
+                        Vec3 ndc3 = {nuevo_2.x / nuevo_2.w, nuevo_2.y / nuevo_2.w, nuevo_2.z / nuevo_2.w};
+
+                        //cada vertice a screen space
+                        //+1 para tenerlo entre 0 y 2, restamos 1 porque pantalla va hasta width-1 y restamos y porque ndc arriba es 1, 0 en screen space
+                        Vec2 real1 = {(1 + ndc1.x) * (WIDTH -1)/ 2, (1 - ndc1.y) * (HEIGHT -1)/ 2};
+                        Vec2 real2 = {(1 + ndc2.x) * (WIDTH -1)/ 2, (1 - ndc2.y) * (HEIGHT -1)/ 2};
+                        Vec2 real3 = {(1 + ndc3.x) * (WIDTH -1)/ 2, (1 - ndc3.y) * (HEIGHT -1)/ 2};
+
+                        //backface culling, todas las areas tienen que tener el mismo signo
+                        //float area = edge_function(real2-real1, real3-real1);
+                        //if (area >= 0) continue;
+
+                        //mandamos las coords 2D con su profundidad para interpolar por profundidad
+                        Vec3 p1 = {real1.x, real1.y, clips[index_bueno].w};
+                        Vec3 p2 = {real2.x, real2.y, nuevo_1.w};
+                        Vec3 p3 = {real3.x, real3.y, nuevo_2.w};
+
+
+                        //si no hay textura, no matar el código con nullptr
+                        static const std::vector<Col> empty_texture;
+
+                        triangulos.push_back({p1,p3,p2,
+                            Vec3{ver[index_bueno].x,ver[index_bueno].y,ver[index_bueno].z},
+                            Vec3{nuevo_rel_2.x,nuevo_rel_2.y,nuevo_rel_2.z},
+                            Vec3{nuevo_rel_1.x,nuevo_rel_1.y,nuevo_rel_1.z},
+                            uv[index_bueno],nuevo_uv_2,nuevo_uv_1,
+                            Vec3{nor[index_bueno].x,nor[index_bueno].y,nor[index_bueno].z},
+                            Vec3{nuevo_nor_2.x,nuevo_nor_2.y,nuevo_nor_2.z},
+                            Vec3{nuevo_nor_1.x,nuevo_nor_1.y,nuevo_nor_1.z},
+                            mat ? &mat->texture : &empty_texture,
+                            mat ? mat->width : 0,
+                            mat ? mat->height : 0,
+                            mat->shininess,mat->specular, mat->ambient, mat->diffuse,
+                            shading_mode}); //mandamos el triangulo a la lista de triangulos epicamente
+                    }
+
+                    //caso3, pues ninguno pasa el near plane, todito perfect
+                    if ( puntos_afuera == 0 ) {
+
+                        //cada vertice a ndc space, normalized device coordinates
+                        Vec3 ndc1 = {ver1_clip.x / ver1_clip.w, ver1_clip.y / ver1_clip.w, ver1_clip.z / ver1_clip.w};
+                        Vec3 ndc2 = {ver2_clip.x / ver2_clip.w, ver2_clip.y / ver2_clip.w, ver2_clip.z / ver2_clip.w};
+                        Vec3 ndc3 = {ver3_clip.x / ver3_clip.w, ver3_clip.y / ver3_clip.w, ver3_clip.z / ver3_clip.w};
+
+                        //cada vertice a screen space
+                        //+1 para tenerlo entre 0 y 2, restamos 1 porque pantalla va hasta width-1 y restamos y porque ndc arriba es 1, 0 en screen space
+                        Vec2 real1 = {(1 + ndc1.x) * (WIDTH -1)/ 2, (1 - ndc1.y) * (HEIGHT -1)/ 2};
+                        Vec2 real2 = {(1 + ndc2.x) * (WIDTH -1)/ 2, (1 - ndc2.y) * (HEIGHT -1)/ 2};
+                        Vec2 real3 = {(1 + ndc3.x) * (WIDTH -1)/ 2, (1 - ndc3.y) * (HEIGHT -1)/ 2};
+
+                        //backface culling, todas las areas tienen que tener el mismo signo
+                        float area = edge_function(real2-real1, real3-real1);
+                        if (area >= 0) continue;
+
+                        //mandamos las coords 2D con su profundidad para interpolar por profundidad
+                        Vec3 p1 = {real1.x, real1.y, ver1_clip.w};
+                        Vec3 p2 = {real2.x, real2.y, ver2_clip.w};
+                        Vec3 p3 = {real3.x, real3.y, ver3_clip.w};
+
+                        //si no hay textura, no matar el código con nullptr
+                        static const std::vector<Col> empty_texture;
+
+                        triangulos.push_back({p1,p2,p3,
+                            Vec3{ver1real.x,ver1real.y,ver1real.z},
+                            Vec3{ver2real.x,ver2real.y,ver2real.z},
+                            Vec3{ver3real.x,ver3real.y,ver3real.z},
+                            uv1,uv2,uv3,
+                            Vec3{nor1real.x,nor1real.y,nor1real.z},
+                            Vec3{nor2real.x,nor2real.y,nor2real.z},
+                            Vec3{nor3real.x,nor3real.y,nor3real.z},
+                            mat ? &mat->texture : &empty_texture,
+                            mat ? mat->width : 0,
+                            mat ? mat->height : 0,
+                            mat->shininess,mat->specular, mat->ambient, mat->diffuse,
+                            shading_mode}); //mandamos el triangulo a la lista de triangulos epicamente
+                    }
                 }
             }
         }

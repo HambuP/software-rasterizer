@@ -34,10 +34,12 @@ int main(int argc, char* argv[]) { // aquí el argc(numero de argumentos) y el c
     Mesh skull;
     Mesh skull2;
     Mesh fondo;
+    Mesh floor;
 
     skull.load_obj("obj/skull/12140_Skull_v3_L2.obj"); // cargamos los objetos usando sus respectivos archivos
     skull2.load_obj("obj/skull/12140_Skull_v3_L2.obj");
     fondo.load_obj("obj/fondo/room.obj");
+    //floor.load_obj("obj/floor/floor.obj");
 
     std::vector<Mesh> meshes; //creamos la lista de objetos y la llenamos
     meshes.push_back(skull);
@@ -55,9 +57,9 @@ int main(int argc, char* argv[]) { // aquí el argc(numero de argumentos) y el c
 
     meshes[1].transforms.translation.z = 12 ;
     meshes[1].transforms.scale = 3;
-    meshes[1].transforms.translation.y  = -7;
     meshes[1].transforms.translation.x  = 23;
     meshes[1].transforms.rotation.y = -1.5;
+    meshes[1].transforms.translation.y  = -7;
     meshes[1].shading_mode  = ShadingMode::PHONG;
 
     meshes[2].transforms.translation.z = 8;

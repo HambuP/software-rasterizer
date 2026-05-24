@@ -43,6 +43,10 @@ struct Vec4 {
         const float length = sqrtf(x * x + y * y + z * z + w * w);
         return {x / length, y / length, z / length, w / length};
     }
+    Vec4 operator+(const Vec4& other) const {
+        return {x + other.x, y + other.y, z + other.z, w + other.w};
+    }
+    Vec4 operator*(const float &k) const { return {x * k, y * k, z * k, w * k}; }
 
 };
 
