@@ -93,7 +93,7 @@ public:
         s.position   = {0.0f, 5.0f, 5.0f};
         Vec3 spot_target = {-5.0f, -2.0f, 14.0f}; // centro de la skull en este caso
         s.direction  = (spot_target - s.position).normalize();
-        s.cone_angle = 70.0f;
+        s.cone_angle = 80.0f;
         s.light_vp   = projection_matrix(s.cone_angle, 1.0f, 0.1f, 50.f) * lookAt_matrix(s.position, spot_target);
         lights.push_back(std::move(s));
 
