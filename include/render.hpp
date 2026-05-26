@@ -7,6 +7,7 @@
 #include <complex>
 #include <thread>
 #include <variant>
+#include <array>
 
 #include "material.hpp"
 
@@ -64,6 +65,9 @@ public:
     int WIDTH, HEIGHT;
     std::vector<Uint32> framebuffer;
     std::vector<float> zbuffer;
+
+    std::vector<Triangulo> triangulos;
+    std::vector<std::thread> threads_list;
 
     unsigned int num_cores = std::thread::hardware_concurrency(); //obtenemos el número de núcleos del procesador para dividir el trabajo entre ellos
     std::vector<tuple> threads; //las dos listas que vamos a usar para dividir el trabajo de render en los nucleos
@@ -193,6 +197,10 @@ public:
             const float w2 = pB.z;
             const float w3 = pC.z;
 
+            const float inv_w1 = 1.0f / w1;
+            const float inv_w2 = 1.0f / w2;
+            const float inv_w3 = 1.0f / w3;
+
             for (int i = minx; i <= maxx; i++) { //para cada pixel de la zona que definimos
                 for (int j = miny; j <= maxy; j++) {
 
@@ -219,15 +227,15 @@ public:
                         float const e3_norm = edge3 / area_total; //baricentrica para b
 
                         //interpolamos la profundidad pero con perspective correct interpolation
-                        float depth = e1_norm*(1/w3) + e2_norm*(1/w1) + e3_norm*(1/w2);
+                        float depth = e1_norm*(inv_w3) + e2_norm*(inv_w1) + e3_norm*(inv_w2);
                         depth = 1/depth;
 
                         //interpolamos la normal, el punto en world space y las coordenadas uv con perspective correct interpolation igual
-                        Vec3 normal = norC*e1_norm*(1/w3) + norA*e2_norm*(1/w1) + norB*e3_norm*(1/w2);
+                        Vec3 normal = norC*e1_norm*(inv_w3) + norA*e2_norm*(inv_w1) + norB*e3_norm*(inv_w2);
                         normal = normal * depth;
-                        Vec3 real_p = realC * e1_norm*(1/w3) + realA * e2_norm*(1/w1) + realB * e3_norm*(1/w2);
+                        Vec3 real_p = realC * e1_norm*(inv_w3) + realA * e2_norm*(inv_w1) + realB * e3_norm*(inv_w2);
                         real_p = real_p * depth;
-                        Vec2 uv_coor = uvC*e1_norm*(1/w3) + uvA*e2_norm*(1/w1) + uvB*e3_norm*(1/w2);
+                        Vec2 uv_coor = uvC*e1_norm*(inv_w3) + uvA*e2_norm*(inv_w1) + uvB*e3_norm*(inv_w2);
                         uv_coor = uv_coor* depth;
 
                         normal = normal.normalize(); //normalizamos la normal . Importante para el calculo de la iluminacion
@@ -448,8 +456,8 @@ public:
     void render_obj(const std::vector<Mesh> &meshes) {
 
         //inicializamos la lista de threads y de triangulos
-        std::vector<std::thread> threads_list;
-        std::vector<Triangulo> triangulos;
+        triangulos.clear();
+        threads_list.clear();
 
         //cada frame reiniciamos el framebuffer y zbuffer
         std::fill(framebuffer.begin(), framebuffer.end(), 0);
@@ -553,14 +561,15 @@ public:
                     if (ver2_clip.z < -ver2_clip.w) puntos_afuera += 1, case2 = true;
                     if (ver3_clip.z < -ver3_clip.w) puntos_afuera += 1, case3 = true;
 
-                    std::vector<Vec4> nor = {nor1real, nor2real, nor3real};
-                    std::vector<Vec4> ver = {ver1real, ver2real, ver3real};
-                    std::vector<Vec2> uv = {uv1, uv2, uv3};
-                    std::vector<Vec4> clips = {ver1_clip, ver2_clip, ver3_clip};
 
                     //ahora, el triangle clipping, tres casos
                     //caso 1, solo pasa un vertice el near plane
                     if (puntos_afuera == 1) {
+
+                        std::array<Vec4,3> nor = {nor1real, nor2real, nor3real};
+                        std::array<Vec4,3> ver = {ver1real, ver2real, ver3real};
+                        std::array<Vec2,3> uv = {uv1, uv2, uv3};
+                        std::array<Vec4,3> clips = {ver1_clip, ver2_clip, ver3_clip};
 
                         int index_bueno1;
                         int index_bueno2;
@@ -646,6 +655,11 @@ public:
 
                     //caso 2, pasan dos vertices el near plane
                     if (puntos_afuera == 2) {
+
+                        std::array<Vec4,3> nor = {nor1real, nor2real, nor3real};
+                        std::array<Vec4,3> ver = {ver1real, ver2real, ver3real};
+                        std::array<Vec2,3> uv = {uv1, uv2, uv3};
+                        std::array<Vec4,3> clips = {ver1_clip, ver2_clip, ver3_clip};
 
                         int index_bueno;
                         int index_malo1;
