@@ -87,7 +87,7 @@ public:
         l.shadow_map.assign(1024*1024, HUGE_VALF);
         l.direction = light_dir;
         l.color     = {0.35f, 0.5f, 0.75f};
-        l.light_vp = ortho_matrix(-35,-5,-15,15,0.1f,80.f) * lookAt_matrix(light_pos, {0,0,0});
+        l.light_vp = ortho_matrix(-25,5,-15,10,0.1f,80.f) * lookAt_matrix(light_pos, {0,0,0});
         lights.push_back(std::move(l));
 
         //una spotlight la llenamos
@@ -97,7 +97,7 @@ public:
         s.position   = {0.0f, 5.0f, 5.0f};
         Vec3 spot_target = {-5.0f, -2.0f, 14.0f}; // centro de la skull en este caso
         s.direction  = (spot_target - s.position).normalize();
-        s.cone_angle = 80.0f;
+        s.cone_angle = 140.0f;
         s.light_vp   = projection_matrix(s.cone_angle, 1.0f, 0.1f, 50.f) * lookAt_matrix(s.position, spot_target);
         lights.push_back(std::move(s));
 
@@ -252,6 +252,27 @@ public:
 
                         const float Ia  = 0.1f; //intensidad de la luz ambiental
                         Vec3 inten_amb = ka * Ia; //intensidad ambiental, es la constante de ambient multiplicada por la intensidad de la luz ambiental
+                        Vec3 coloro = {1,1,1};
+
+                        if (!colores.empty()) {
+
+                            //calculamos las coords del pixel en la textura, restamos 1 en y porque uv, 0 abajo
+                            int pix_x = static_cast<int>(uv_coor.x * (tex_width-1));
+                            int pix_y = static_cast<int>((1-uv_coor.y) * (tex_height-1));
+
+                            //si pixel afuera de la textura, return para salir, porque estamos dentro de std::visit
+                            if (pix_x < 0 || pix_x >= static_cast<int>(tex_width) ||
+                               pix_y < 0 || pix_y >= static_cast<int>(tex_height)) {return;}
+
+                            //obtenemos el color del pixel
+                            Col color = colores[pix_y * tex_width + pix_x];
+                            //y lo normalizamos
+                            coloro = {color.r/255.0f, color.g/255.0f, color.b/255.0f};
+                            inten_amb = Vec3{coloro.x*ka.x, coloro.y*ka.y, coloro.z*ka.z}*Ia;
+
+                        }
+
+
 
                         for (auto& luz : lights) { //recorremos todas las luces
 
@@ -310,7 +331,7 @@ public:
                                     float bias = std::max(0.0005f, 0.01f * (1.0f - n_dot_l));
 
                                     //por defecto, las cosas no estan en la sombra, pera que toda la escena parezca estar iluminada
-                                    bool sombreado = false;
+                                    bool sombreado = true;
 
                                     //calculamos el punto en el shadow map y comparamos como un z buffer
                                     int sx = static_cast<int>((ndc_luz.x + 1.0f) * 0.5f * 1023);
@@ -375,18 +396,7 @@ public:
                                         //si sí hay textura
                                         else {
 
-                                            //calculamos las coords del pixel en la textura, restamos 1 en y porque uv, 0 abajo
-                                            int pix_x = static_cast<int>(uv_coor.x * (tex_width-1));
-                                            int pix_y = static_cast<int>((1-uv_coor.y) * (tex_height-1));
 
-                                            //si pixel afuera de la textura, return para salir, porque estamos dentro de std::visit
-                                            if (pix_x < 0 || pix_x >= static_cast<int>(tex_width) ||
-                                               pix_y < 0 || pix_y >= static_cast<int>(tex_height)) {return;}
-
-                                            //obtenemos el color del pixel
-                                            Col color = colores[pix_y * tex_width + pix_x];
-                                            //y lo normalizamos
-                                            Vec3 coloro = {color.r/255.0f, color.g/255.0f, color.b/255.0f};
 
                                             //cuando hay textura, el color actua como el kd
                                             Vec3 colo_luz = {coloro.x* Iluz.x , coloro.y* Iluz.y , coloro.z* Iluz.z };
@@ -898,6 +908,8 @@ public:
                             if (ver1_clip.x > ver1_clip.w && ver2_clip.x > ver2_clip.w && ver3_clip.x > ver3_clip.w) continue;
                             if (ver1_clip.y < -ver1_clip.w && ver2_clip.y < -ver2_clip.w && ver3_clip.y < -ver3_clip.w) continue;
                             if (ver1_clip.y > ver1_clip.w && ver2_clip.y > ver2_clip.w && ver3_clip.y > ver3_clip.w) continue;
+                            if (ver1_clip.z < -ver1_clip.w && ver2_clip.z < -ver2_clip.w && ver3_clip.z < -ver3_clip.w) continue;
+                            if (ver1_clip.z > ver1_clip.w && ver2_clip.z > ver2_clip.w && ver3_clip.z > ver3_clip.w) continue;
 
                             Vec3 ndc1 = {ver1_clip.x / ver1_clip.w, ver1_clip.y / ver1_clip.w, ver1_clip.z / ver1_clip.w};
                             Vec3 ndc2 = {ver2_clip.x / ver2_clip.w, ver2_clip.y / ver2_clip.w, ver2_clip.z / ver2_clip.w};
