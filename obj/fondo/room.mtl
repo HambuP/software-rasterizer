@@ -1,12 +1,12 @@
 newmtl azulejo
-Ka 0.2 0.2 0.2
+Ka 0.1 0.1 0.1
 Kd 0.20 0.20 0.20
 Ks 0.00 0.00 0.00
 Ns 1.0
 map_Kd textures/piso.bmp
 
 newmtl azulejo1
-Ka 1 1 1
+Ka 0.6 0.6 0.6
 Kd 0.20 0.26 0.20
 Ks 0.00 0.00 0.00
 Ns 1.0

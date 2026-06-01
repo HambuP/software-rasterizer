@@ -12,6 +12,7 @@
 #include "material.hpp"
 
 struct DirectionalLight { //luz direccional
+    float intensity;
     Vec3 direction;
     Vec3 color;
     std::vector<float> shadow_map;
@@ -20,6 +21,7 @@ struct DirectionalLight { //luz direccional
 };
 
 struct SpotLight { //spotlight, más complejo que el direccional
+    float intensity;
     Vec3 position;
     Vec3 direction;
     float cone_angle;
@@ -84,6 +86,7 @@ public:
 
         //una luz direccional la llenamos
         DirectionalLight l;
+        l.intensity = 2;
         l.shadow_map.assign(1024*1024, HUGE_VALF);
         l.direction = light_dir;
         l.color     = {0.25f, 0.4f, 0.65f};
@@ -92,8 +95,9 @@ public:
 
         //una spotlight la llenamos
         SpotLight s;
+        s.intensity = 3;
         s.shadow_map.assign(1024*1024, HUGE_VALF);
-        s.color      = {1.0f, 0.65f, 0.3f};
+        s.color      = {1.0f, 0.45f, 0.2f};
         s.position   = {3.0f, 12.0f, -5.0f};
         Vec3 spot_target = {-5.0f, -7.0f, 14.0f}; // centro de la skull en este caso
         s.direction  = (spot_target - s.position).normalize();
@@ -319,7 +323,7 @@ public:
 
                                 if (!no_aporta) { //si la luz aporta
 
-                                    const Vec3 Iluz = l.color * atenuacion * factor;  // intensidad de la luz normalita
+                                    const Vec3 Iluz = l.color * l.intensity * atenuacion * factor;  // intensidad de la luz normalita
 
                                     //proyectamos el punto 3D del pixel a la luz para compararlo con el shadow map
                                     Vec4 pos_luz = l.light_vp * Vec4{real_p.x, real_p.y, real_p.z, 1.0f};
