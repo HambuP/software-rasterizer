@@ -86,7 +86,7 @@ public:
         DirectionalLight l;
         l.shadow_map.assign(1024*1024, HUGE_VALF);
         l.direction = light_dir;
-        l.color     = {0.35f, 0.5f, 0.75f};
+        l.color     = {0.25f, 0.4f, 0.65f};
         l.light_vp = ortho_matrix(-25,5,-15,10,0.1f,80.f) * lookAt_matrix(light_pos, {0,0,0});
         lights.push_back(std::move(l));
 
@@ -94,10 +94,10 @@ public:
         SpotLight s;
         s.shadow_map.assign(1024*1024, HUGE_VALF);
         s.color      = {1.0f, 0.65f, 0.3f};
-        s.position   = {0.0f, 5.0f, 5.0f};
-        Vec3 spot_target = {-5.0f, -2.0f, 14.0f}; // centro de la skull en este caso
+        s.position   = {3.0f, 12.0f, -5.0f};
+        Vec3 spot_target = {-5.0f, -7.0f, 14.0f}; // centro de la skull en este caso
         s.direction  = (spot_target - s.position).normalize();
-        s.cone_angle = 140.0f;
+        s.cone_angle = 70.0f;
         s.light_vp   = projection_matrix(s.cone_angle, 1.0f, 0.1f, 50.f) * lookAt_matrix(s.position, spot_target);
         lights.push_back(std::move(s));
 
@@ -303,7 +303,7 @@ public:
                                     float angulo = radianes(l.cone_angle);
 
                                     //calculamos el coseno de cada angulo, interior, exterior y actual para calcular el factor
-                                    float cos_angulo_inner = cosf(radianes(30)/2);
+                                    float cos_angulo_inner = cosf(radianes(40)/2);
                                     float cos_angulo_outer = cosf(radianes(l.cone_angle)/2);
                                     float cos_actual = light_dir * cono_dir;
 
@@ -331,7 +331,7 @@ public:
                                     float bias = std::max(0.0005f, 0.01f * (1.0f - n_dot_l));
 
                                     //por defecto, las cosas no estan en la sombra, pera que toda la escena parezca estar iluminada
-                                    bool sombreado = true;
+                                    bool sombreado = false;
 
                                     //calculamos el punto en el shadow map y comparamos como un z buffer
                                     int sx = static_cast<int>((ndc_luz.x + 1.0f) * 0.5f * 1023);
@@ -855,7 +855,7 @@ public:
         }
     }
 
-    void shadow_pass(const std::vector<Mesh>& meshes, std::variant<DirectionalLight,SpotLight> &light) {
+    void shadow_pass(const std::vector<Mesh>& meshes, std::variant<DirectionalLight,SpotLight> &light) { //yo nunca me iré eso debes saberlo estare
 
         //extraemos la luz con su tipo
         std::visit([&](auto& luz) {
@@ -911,19 +911,116 @@ public:
                             if (ver1_clip.z < -ver1_clip.w && ver2_clip.z < -ver2_clip.w && ver3_clip.z < -ver3_clip.w) continue;
                             if (ver1_clip.z > ver1_clip.w && ver2_clip.z > ver2_clip.w && ver3_clip.z > ver3_clip.w) continue;
 
-                            Vec3 ndc1 = {ver1_clip.x / ver1_clip.w, ver1_clip.y / ver1_clip.w, ver1_clip.z / ver1_clip.w};
-                            Vec3 ndc2 = {ver2_clip.x / ver2_clip.w, ver2_clip.y / ver2_clip.w, ver2_clip.z / ver2_clip.w};
-                            Vec3 ndc3 = {ver3_clip.x / ver3_clip.w, ver3_clip.y / ver3_clip.w, ver3_clip.z / ver3_clip.w};
 
-                            Vec2 real1 = {(1 + ndc1.x) * (1024 -1)/ 2, (1 - ndc1.y) * (1024 -1)/ 2};
-                            Vec2 real2 = {(1 + ndc2.x) * (1024 -1)/ 2, (1 - ndc2.y) * (1024 -1)/ 2};
-                            Vec2 real3 = {(1 + ndc3.x) * (1024 -1)/ 2, (1 - ndc3.y) * (1024 -1)/ 2};
+                            int puntos_afuera = 0;
+                            bool case1 = false;
+                            bool case2 = false;
+                            bool case3 = false;
 
-                            Vec3 p1 = {real1.x, real1.y, ver1_clip.w};
-                            Vec3 p2 = {real2.x, real2.y, ver2_clip.w};
-                            Vec3 p3 = {real3.x, real3.y, ver3_clip.w};
+                            if (ver1_clip.z < -ver1_clip.w) puntos_afuera += 1, case1 = true;
+                            if (ver2_clip.z < -ver2_clip.w) puntos_afuera += 1, case2 = true;
+                            if (ver3_clip.z < -ver3_clip.w) puntos_afuera += 1, case3 = true;
 
-                            shadow_triangulos.push_back({p1,p2,p3,ndc1.z,ndc2.z,ndc3.z});
+
+                            if (puntos_afuera == 1) {
+
+                                std::array<Vec4,3> clips = {ver1_clip, ver2_clip, ver3_clip};
+
+                                int index_bueno1;
+                                int index_bueno2;
+                                int index_malo;
+
+                                if (case1) index_malo = 0, index_bueno1 = 1, index_bueno2 = 2;
+                                if (case2) index_malo = 1, index_bueno1 = 2, index_bueno2 = 0;
+                                if (case3) index_malo = 2, index_bueno1 = 0, index_bueno2 = 1;
+
+                                float delta_l = (clips[index_bueno1].z + clips[index_bueno1].w) / ((clips[index_bueno1].z + clips[index_bueno1].w) - (clips[index_malo].z + clips[index_malo].w));
+                                float delta_r = (clips[index_bueno2].z + clips[index_bueno2].w) / ((clips[index_bueno2].z + clips[index_bueno2].w) - (clips[index_malo].z + clips[index_malo].w));
+
+                                Vec4 nuevo_1 = clips[index_bueno1]*(1-delta_l) + clips[index_malo]*delta_l;
+                                Vec4 nuevo_2 = clips[index_bueno2]*(1-delta_r) + clips[index_malo]*delta_r;
+
+                                //cada vertice a ndc space, normalized device coordinates
+                                Vec3 ndc1 = {clips[index_bueno1].x / clips[index_bueno1].w, clips[index_bueno1].y / clips[index_bueno1].w, clips[index_bueno1].z / clips[index_bueno1].w};
+                                Vec3 ndc2 = {clips[index_bueno2].x / clips[index_bueno2].w, clips[index_bueno2].y / clips[index_bueno2].w, clips[index_bueno2].z / clips[index_bueno2].w};
+                                Vec3 ndc3 = {nuevo_1.x / nuevo_1.w, nuevo_1.y / nuevo_1.w, nuevo_1.z / nuevo_1.w};
+                                Vec3 ndc4 = {nuevo_2.x / nuevo_2.w, nuevo_2.y / nuevo_2.w, nuevo_2.z / nuevo_2.w};
+
+                                //cada vertice a screen space
+                                //+1 para tenerlo entre 0 y 2, restamos 1 porque pantalla va hasta width-1 y restamos y porque ndc arriba es 1, 0 en screen space
+                                Vec2 real1 = {(1 + ndc1.x) * (1024 -1)/ 2, (1 - ndc1.y) * (1024 -1)/ 2};
+                                Vec2 real2 = {(1 + ndc2.x) * (1024 -1)/ 2, (1 - ndc2.y) * (1024 -1)/ 2};
+                                Vec2 real3 = {(1 + ndc3.x) * (1024 -1)/ 2, (1 - ndc3.y) * (1024 -1)/ 2};
+                                Vec2 real4 = {(1 + ndc4.x) * (1024 -1)/ 2, (1 - ndc4.y) * (1024 -1)/ 2};
+
+                                //mandamos las coords 2D con su profundidad para interpolar por profundidad
+                                Vec3 p1 = {real1.x, real1.y, clips[index_bueno1].w};
+                                Vec3 p2 = {real2.x, real2.y, clips[index_bueno2].w};
+                                Vec3 p3 = {real3.x, real3.y, nuevo_1.w};
+                                Vec3 p4 = {real4.x, real4.y, nuevo_2.w};
+
+                                shadow_triangulos.push_back({p1,p4,p3,ndc1.z,ndc4.z, ndc3.z});
+                                shadow_triangulos.push_back({p1,p2,p4,ndc1.z,ndc2.z, ndc4.z});
+
+                            }
+
+                            //caso 2, pasan dos vertices el near plane
+                            if (puntos_afuera == 2) {
+
+                                std::array<Vec4,3> clips = {ver1_clip, ver2_clip, ver3_clip};
+
+                                int index_bueno;
+                                int index_malo1;
+                                int index_malo2;
+
+                                if (case1 && case2) index_malo1 = 1, index_malo2 = 0, index_bueno = 2;
+                                if (case2 && case3) index_malo1 = 2, index_malo2 = 1, index_bueno = 0;
+                                if (case3 && case1) index_malo1 = 0, index_malo2 = 2, index_bueno = 1;
+
+                                float delta_l = (clips[index_bueno].z + clips[index_bueno].w) / ((clips[index_bueno].z + clips[index_bueno].w) - (clips[index_malo1].z + clips[index_malo1].w));
+                                float delta_r = (clips[index_bueno].z + clips[index_bueno].w) / ((clips[index_bueno].z + clips[index_bueno].w) - (clips[index_malo2].z + clips[index_malo2].w));
+
+                                Vec4 nuevo_1 = clips[index_bueno]*(1-delta_l) + clips[index_malo1]*delta_l;
+                                Vec4 nuevo_2 = clips[index_bueno]*(1-delta_r) + clips[index_malo2]*delta_r;
+
+                                 //cada vertice a ndc space, normalized device coordinates
+                                Vec3 ndc1 = {clips[index_bueno].x / clips[index_bueno].w, clips[index_bueno].y / clips[index_bueno].w, clips[index_bueno].z / clips[index_bueno].w};
+                                Vec3 ndc2 = {nuevo_1.x / nuevo_1.w, nuevo_1.y / nuevo_1.w, nuevo_1.z / nuevo_1.w};
+                                Vec3 ndc3 = {nuevo_2.x / nuevo_2.w, nuevo_2.y / nuevo_2.w, nuevo_2.z / nuevo_2.w};
+
+                                //cada vertice a screen space
+                                //+1 para tenerlo entre 0 y 2, restamos 1 porque pantalla va hasta width-1 y restamos y porque ndc arriba es 1, 0 en screen space
+                                Vec2 real1 = {(1 + ndc1.x) * (1024 -1)/ 2, (1 - ndc1.y) * (1024 -1)/ 2};
+                                Vec2 real2 = {(1 + ndc2.x) * (1024 -1)/ 2, (1 - ndc2.y) * (1024 -1)/ 2};
+                                Vec2 real3 = {(1 + ndc3.x) * (1024 -1)/ 2, (1 - ndc3.y) * (1024 -1)/ 2};
+
+                                //mandamos las coords 2D con su profundidad para interpolar por profundidad
+                                Vec3 p1 = {real1.x, real1.y, clips[index_bueno].w};
+                                Vec3 p2 = {real2.x, real2.y, nuevo_1.w};
+                                Vec3 p3 = {real3.x, real3.y, nuevo_2.w};
+
+                                shadow_triangulos.push_back({p1,p3,p2,ndc1.z,ndc3.z, ndc2.z});
+
+                            }
+
+                            //caso3, pues ninguno pasa el near plane, todito perfect
+                            if ( puntos_afuera == 0 ) {
+
+                                Vec3 ndc1 = {ver1_clip.x / ver1_clip.w, ver1_clip.y / ver1_clip.w, ver1_clip.z / ver1_clip.w};
+                                Vec3 ndc2 = {ver2_clip.x / ver2_clip.w, ver2_clip.y / ver2_clip.w, ver2_clip.z / ver2_clip.w};
+                                Vec3 ndc3 = {ver3_clip.x / ver3_clip.w, ver3_clip.y / ver3_clip.w, ver3_clip.z / ver3_clip.w};
+
+                                Vec2 real1 = {(1 + ndc1.x) * (1024 -1)/ 2, (1 - ndc1.y) * (1024 -1)/ 2};
+                                Vec2 real2 = {(1 + ndc2.x) * (1024 -1)/ 2, (1 - ndc2.y) * (1024 -1)/ 2};
+                                Vec2 real3 = {(1 + ndc3.x) * (1024 -1)/ 2, (1 - ndc3.y) * (1024 -1)/ 2};
+
+                                Vec3 p1 = {real1.x, real1.y, ver1_clip.w};
+                                Vec3 p2 = {real2.x, real2.y, ver2_clip.w};
+                                Vec3 p3 = {real3.x, real3.y, ver3_clip.w};
+
+                                shadow_triangulos.push_back({p1,p2,p3,ndc1.z,ndc2.z,ndc3.z});
+
+                            }
                         }
                     }
                 }
