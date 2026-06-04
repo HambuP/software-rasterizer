@@ -136,7 +136,15 @@ public:
                 (static_cast<uint8_t>(buffer[24]) << 16) |
                 (static_cast<uint8_t>(buffer[25]) << 24);
 
-            int padding = (4-((width*3)%4))%4; //significa, cuanto le falta a la linea de bits para que pueda divirse por 4
+            uint16_t bitsPerPixel =
+            static_cast<uint8_t>(buffer[28]) |
+            (static_cast<uint8_t>(buffer[29]) << 8);
+
+            int bytesPerPixel = bitsPerPixel / 8;
+            int stride = width * bytesPerPixel;
+
+
+            int padding = (bitsPerPixel==24)? (4-((width*3)%4))%4 : 0; //significa, cuanto le falta a la linea de bits para que pueda divirse por 4
             std::vector<Col> colores(width*height,{0,0,0}); //inicializamos la textura
 
             std::cout << "start: " << start << "\n";
@@ -145,15 +153,17 @@ public:
             std::cout << "padding: " << padding << "\n";
 
             for (int j= height-1; j >= 0; j--){ //recorremos el archivo de abajo hacia arriba por convencion de bmp
-                for (int i = 0; i < width*3; i = i + 3){ //recorremos cada tres para guardar el r,g y b
+                for (int i = 0; i < width; i++){ //recorremos cada tres para guardar el r,g y b
+
+                    int idx = j*(stride + padding) + i*bytesPerPixel+start;
 
                     //los archivos bmp usan orden bgr por convención, en vez del epico y conocido rgb
                     //aquí esta medio raro, pero cada linea pues mide width*3+padding, pero claro
                     //le sumamos el start que es donde comienza la textura en sí
                     //en la lista de colores, restamos j justamente porque colores va de arriba hacia abajo y bmp al reves
-                    colores[(height-1-j)*width + i/3].b = static_cast<unsigned int>(static_cast<unsigned char>(buffer[j*(width*3+padding) + i + start])); //b
-                    colores[(height-1-j)*width + i/3].g = static_cast<unsigned int>(static_cast<unsigned char>(buffer[j*(width*3+padding) + i + start + 1])); //g
-                    colores[(height-1-j)*width + i/3].r = static_cast<unsigned int>(static_cast<unsigned char>(buffer[j*(width*3+padding) + i + start + 2])); //r
+                    colores[(height-1-j)*width + i].b = static_cast<unsigned int>(static_cast<unsigned char>(buffer[idx])); //b
+                    colores[(height-1-j)*width + i].g = static_cast<unsigned int>(static_cast<unsigned char>(buffer[idx + 1])); //g
+                    colores[(height-1-j)*width + i].r = static_cast<unsigned int>(static_cast<unsigned char>(buffer[idx + 2])); //r
 
                 }
             }
