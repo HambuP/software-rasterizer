@@ -6,7 +6,17 @@
 
 **A 3D renderer that runs entirely on the CPU, written from scratch in C++ to understand how 3D graphics actually work.**
 
-[Documentation](https://hambup.me) · [Bugs Hall of Fame](https://hambup.me/extras/bugs/) · [Handwritten notes](https://hambup.me/extras/process/)
+<a href="https://hambup.me"><img src="https://img.shields.io/badge/Documentation-hambup.me-c8894a?style=for-the-badge" alt="Documentation"/></a>
+&nbsp;
+<a href="https://hambup.me/extras/bugs/"><img src="https://img.shields.io/badge/Bugs-Hall_of_Fame-c87060?style=for-the-badge" alt="Bugs Hall of Fame"/></a>
+&nbsp;
+<a href="https://hambup.me/extras/process/"><img src="https://img.shields.io/badge/Handwritten-Notes-8a9e82?style=for-the-badge" alt="Handwritten notes"/></a>
+
+<a href="https://isocpp.org/"><img src="https://img.shields.io/badge/C%2B%2B-17-555?style=for-the-badge&logo=cplusplus&logoColor=white" alt="C++17"/></a>
+&nbsp;
+<a href="https://wiki.libsdl.org/SDL3/FrontPage"><img src="https://img.shields.io/badge/SDL-3-555?style=for-the-badge" alt="SDL3"/></a>
+&nbsp;
+<a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-555?style=for-the-badge" alt="MIT License"/></a>
 
 </div>
 
