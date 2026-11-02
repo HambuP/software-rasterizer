@@ -1,28 +1,25 @@
-# Versión mínima de CMake requerida
-cmake_minimum_required(VERSION 3.28)
+cmake_minimum_required(VERSION 3.24)
+project(Rasterizer C CXX)
 
-# Nombre del proyecto y lenguaje
-project(Rasterizer CXX)
-
-# Estándar de C++ a usar
 set(CMAKE_CXX_STANDARD 17)
 
-# Archivos fuente — todos los .cpp que quieres compilar
+include(FetchContent)
+
+set(SDL_SHARED OFF CACHE BOOL "" FORCE)
+set(SDL_STATIC ON CACHE BOOL "" FORCE)
+
+FetchContent_Declare(
+        SDL3
+        GIT_REPOSITORY https://github.com/libsdl-org/SDL.git
+        GIT_TAG release-3.2.24
+        GIT_SHALLOW TRUE
+)
+FetchContent_MakeAvailable(SDL3)
+
 add_executable(Rasterizer
         main.cpp
 )
 
-# Decirle a CMake dónde están los headers de SDL3
-target_include_directories(Rasterizer PRIVATE
-        C:/SDL3/include
-)
-
-# Decirle a CMake dónde están los archivos .lib de SDL3
-target_link_directories(Rasterizer PRIVATE
-        C:/SDL3/lib
-)
-
-# Linkear las librerías necesarias
 target_link_libraries(Rasterizer PRIVATE
-        SDL3
+        SDL3::SDL3
 )
