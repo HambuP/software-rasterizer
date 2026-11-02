@@ -75,7 +75,7 @@ Release build at 800×600 on a TODO-CPU.
 | Scene | Triangles | FPS |
 |---|---|---|
 | Jeep model | ~5K | ~400 |
-| Default scene (in the repo), 2 lights with shadows | 22 | ~150 |
+| Default scene (in the repo), 2 lights with shadows | 22 | ~200 |
 | Two skulls + room, 2 lights with shadows | ~160K | ~150 |
 | Backrooms | ~70K | ~100 |
 
