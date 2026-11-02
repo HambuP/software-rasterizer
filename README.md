@@ -79,15 +79,11 @@ Release build at 800×600 on a TODO-CPU.
 | Two skulls + room, 2 lights with shadows | ~160K | ~150 |
 | Backrooms | ~70K | ~100 |
 
-The default scene has 22 triangles and the skull scene has 160K, yet both run at about the same speed. Most of the frame goes to shading every pixel on screen, not to the number of triangles.
+Going from 22 triangles (default scene) to 160K (two skulls) only drops from ~200 to ~150 FPS. Most of the frame goes to shading every pixel on screen, not to the number of triangles.
 
 ## 🚀 Run it
 
-### 📦 Option 1: download (Windows)
-
-Grab the latest zip from [Releases](https://github.com/HambuP/software-rasterizer/releases), unzip it, and run `Rasterizer.exe`. Nothing else to install.
-
-### 🛠️ Option 2: build from source (Windows, Linux, macOS)
+### 🛠️ Build from source (Windows, Linux, macOS)
 
 You need [CMake](https://cmake.org/download/) 3.24+ and a C++17 compiler. You don't need to install SDL3; CMake downloads and builds it automatically the first time (this takes a minute or two).
 
