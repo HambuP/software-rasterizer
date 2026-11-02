@@ -70,7 +70,7 @@ Everything below is my own code. SDL3 only opens the window and shows the finish
 
 ## ⚡ Performance
 
-Release build at 800×600 on a TODO-CPU.
+Release build at 800×600 on an Apple M5.
 
 | Scene | Triangles | FPS |
 |---|---|---|
