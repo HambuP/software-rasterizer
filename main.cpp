@@ -1,8 +1,8 @@
 #include <SDL3/SDL.h>
 #include "include/render.hpp"
 
-constexpr int WIDTH = 800; //usamos constexpr en vez del simple const esto lo evalua en compile time y no en runtime,
-constexpr int HEIGHT = 600; //así que el programa reemplaza el valor antes de ejecutarlo y no tener que buscarlo mientras corre
+constexpr int WIDTH = 1080; //usamos constexpr en vez del simple const esto lo evalua en compile time y no en runtime,
+constexpr int HEIGHT = 720; //así que el programa reemplaza el valor antes de ejecutarlo y no tener que buscarlo mientras corre
                             //el programa. Es lo más eficiente para variables de este tipo. El programa no busca el valor en memoria, pues ya está escrito
 
 int main(int argc, char* argv[]) { // aquí el argc(numero de argumentos) y el char* argv (array con strings de argumentos)
@@ -27,27 +27,20 @@ int main(int argc, char* argv[]) { // aquí el argc(numero de argumentos) y el c
     //y le pasamos la ventana que acabamos de crear, un nullptr para el driver
     //(que es el que se encarga de manejar la renderización) con nullptr elige el mejor, que traduce todito al lenguaje que usa Windows10
 
-
     //inicializamos objetos 3D y escena 3D
     Render renderizador(renderer,WIDTH,HEIGHT); //incializamos el render con la clase
 
-    Mesh skull;
-    Mesh skull2;
     Mesh fondo;
-    Mesh frustum;
+    Mesh cubo;
 
-    skull.load_obj("obj/skull/12140_Skull_v3_L2.obj"); // cargamos los objetos usando sus respectivos archivos
-    skull2.load_obj("obj/skull/12140_Skull_v3_L2.obj");
     fondo.load_obj("obj/fondo/room.obj");
-    frustum.load_obj("obj/frustum/frustum.obj");
-
-    //floor.load_obj("obj/floor/floor.obj");
+    cubo.load_obj("obj/cubo_mine/sin_nombre.obj");
 
     std::vector<Mesh> meshes; //creamos la lista de objetos y la llenamos
     meshes.push_back(fondo);
-    meshes.push_back(skull);
-    meshes.push_back(skull2);
-    //meshes.push_back(frustum);
+    meshes.push_back(cubo);
+
+    meshes[0].transforms.scale= 2;
 
     //definimos transformaciones iniciales para los objetos de la escena, estos ya que no entran en el loop solo se aplican pues una vez
     meshes[0].transforms.translation.z = 12 ;
@@ -57,21 +50,11 @@ int main(int argc, char* argv[]) { // aquí el argc(numero de argumentos) y el c
     meshes[0].transforms.translation.y  = -7;
     meshes[0].shading_mode  = ShadingMode::PHONG;
 
-    meshes[1].transforms.translation.z = 18;
-    meshes[1].transforms.scale = 0.4;
-    meshes[1].transforms.translation.y  = -5;
+    meshes[1].transforms.translation.z = 8;
+    meshes[1].transforms.scale = 2;
+    meshes[1].transforms.translation.y  = 0;
     meshes[1].transforms.translation.x  = -6;
-    meshes[1].transforms.rotation.x = -1.5;
-    meshes[1].transforms.rotation.y = 1.9;
     meshes[1].shading_mode  = ShadingMode::PHONG;
-
-    meshes[2].transforms.translation.z = 8;
-    meshes[2].transforms.scale = 0.4;
-    meshes[2].transforms.translation.y  = -5;
-    meshes[2].transforms.translation.x  = -6;
-    meshes[2].transforms.rotation.x = -1.5;
-    meshes[2].transforms.rotation.y = 1.2;
-    meshes[2].shading_mode  = ShadingMode::TOON;
 
     bool running = true; //la variable que va a servir de condición para el loop del juego, cambia cuando nos salimos
     SDL_Event event; //esta es la variable que va a hacerce cargo de todos los eventos de SDL como movimiento mouse
@@ -79,7 +62,7 @@ int main(int argc, char* argv[]) { // aquí el argc(numero de argumentos) y el c
     SDL_SetWindowRelativeMouseMode(window, true);//esconde el mouse y para que de solo deltas al moverse, el que necesitamos
 
     const float sensitivity = 0.001; //sensibilidad de la camara
-    const float speed = 0.5; //velocidad de la camara
+    const float speed = 0.2; //velocidad de la camara
 
     //loop principal
     while (running) {
