@@ -4,14 +4,16 @@
 
 <figure class="hero-figure">
   <img src="assets/img/hero.png" alt="Final render" class="hero-img"/>
-  <figcaption>Final render — Phong (left) and Toon shading (right), two lights, shadow mapping, ~30 FPS on CPU.</figcaption>
+  <figcaption>Final render — Phong (left) and Toon shading (right), two lights, shadow mapping, ~150 FPS on the CPU (Apple M5, release build).</figcaption>
 </figure>
+
+*All performance numbers on this site were measured on a MacBook Pro (Apple M5), release build, 800×600. Some older GIFs and videos were recorded on my previous Windows laptop, which is much slower, so their title bars show lower FPS.*
 
 ---
 
 ## What is this
 
-Every pixel, every frame on screen — every triangle, shadow, and reflection — is the result of a complex process that transforms objects with 3D coordinates into colored pixels. Game engines abstract this entire process, and GPUs accelerate it in hardware. This project aims to understand exactly what happens at each step — and the only way to do that is to build it in software: <span class="accent-red">every mathematical operation happening in plain C++ code, with nothing hidden underneath</span>.
+Every pixel, every frame on screen — every triangle, highlight, and shadow — is the result of a complex process that transforms objects with 3D coordinates into colored pixels. Game engines abstract this entire process, and GPUs accelerate it in hardware. This project aims to understand exactly what happens at each step — and the only way to do that is to build it in software: <span class="accent-red">every mathematical operation happening in plain C++ code, with nothing hidden underneath</span>.
 
 A software rasterizer takes a 3D scene, applies a series of mathematical transformations, and writes the final colors directly into a framebuffer — <span class="accent-gold">the list of pixels that ends up painted on screen</span>. All of it without graphics APIs like OpenGL or Vulkan. Just math, memory, and a lot of debugging.
 
@@ -68,7 +70,7 @@ The result is a renderer I can explain from first principles — and this docume
   </div>
   <div class="feature-item">
     <span class="feature-tag">Threads</span>
-    <span>Multithreaded rasterizer across CPU cores</span>
+    <span>Screen split into bands of rows, one per thread</span>
   </div>
 </div>
 
@@ -118,4 +120,4 @@ The interactive visualizations were designed by me and built with [Claude](https
   </a>
 </div>
 
-<p class="github-link"><a href="https://github.com/HambuP/3D-Rasterizer-in-Cpp-using-SDL3">View source on GitHub →</a></p>
+<p class="github-link"><a href="https://github.com/HambuP/software-rasterizer">View source on GitHub →</a></p>
