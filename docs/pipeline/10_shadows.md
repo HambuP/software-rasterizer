@@ -256,7 +256,7 @@ Both factors multiply the final light intensity: `Iluz = l.color * atenuacion * 
   <source src="../../assets/img/result_final_phong_scene.mkv" type="video/mp4">
 </video>
 </div>
-<p class="img-caption">Final Phong scene — free camera, ~30 FPS on CPU.</p>
+<p class="img-caption">Final Phong scene — free camera. Recorded on my older laptop; the same scene runs at ~150 FPS on an Apple M5.</p>
 
 ![Final Toon render](../assets/img/result_final_toon.png){ .page-img }
 <p class="img-caption">Final Toon scene — same setup, cel-shaded.</p>
