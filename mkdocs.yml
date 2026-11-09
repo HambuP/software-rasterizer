@@ -40,8 +40,8 @@ nav:
       - "Math Primer":              extras/math_primer.md
       - "References":               extras/references.md
 
-repo_url: https://github.com/HambuP/3D-Rasterizer-in-Cpp-using-SDL3
-repo_name: HambuP/3D-Rasterizer-in-Cpp-using-SDL3
+repo_url: https://github.com/HambuP/software-rasterizer
+repo_name: HambuP/software-rasterizer
 
 
 extra_css:
