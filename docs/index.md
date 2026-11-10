@@ -46,7 +46,7 @@ The result is a renderer I can explain from first principles — and this docume
   </div>
   <div class="feature-item">
     <span class="feature-tag">Parsing</span>
-    <span>OBJ + BMP parser — zero external libraries</span>
+    <span>OBJ + MTL + BMP parsers — zero external libraries</span>
   </div>
   <div class="feature-item">
     <span class="feature-tag">Camera</span>
@@ -58,7 +58,11 @@ The result is a renderer I can explain from first principles — and this docume
   </div>
   <div class="feature-item">
     <span class="feature-tag">Culling</span>
-    <span>Backface · frustum culling</span>
+    <span>Backface · frustum culling (x, y and z)</span>
+  </div>
+  <div class="feature-item">
+    <span class="feature-tag">Clipping</span>
+    <span>Near-plane triangle clipping · camera and shadow pass</span>
   </div>
   <div class="feature-item">
     <span class="feature-tag">Lighting</span>
@@ -66,13 +70,24 @@ The result is a renderer I can explain from first principles — and this docume
   </div>
   <div class="feature-item">
     <span class="feature-tag">Shadows</span>
-    <span>Shadow mapping · bias · spotlight perspective</span>
+    <span>Shadow mapping · directional + spot · bias · cached until a light changes</span>
   </div>
   <div class="feature-item">
     <span class="feature-tag">Threads</span>
     <span>Screen split into bands of rows, one per thread</span>
   </div>
 </div>
+
+## Performance
+
+| Scene | Triangles | FPS |
+|---|---|---|
+| Jeep | ~5K | ~400 |
+| Default scene (2 lights + shadows) | — | ~200 |
+| Backrooms | ~70K | ~100 |
+| Two skulls + room (2 shadowed lights) | ~160K | ~150 |
+
+Release build, 800×600, MacBook Pro (Apple M5). The skull and Backrooms models are third-party, so they aren't in the repo; the default scene there is a simple cube-style model.
 
 ## Stack
 
@@ -111,7 +126,7 @@ The interactive visualizations were designed by me and built with [Claude](https
   <a href="pipeline/01_framebuffer/" class="nav-card">
     <span class="nav-card-label">Pipeline</span>
     <span class="nav-card-title">Start from the beginning →</span>
-    <span class="nav-card-sub">From the first pixel on screen to shadow mapping — every stage explained.</span>
+    <span class="nav-card-sub">From the first pixel on screen to shadow mapping and clipping — every stage explained.</span>
   </a>
   <a href="extras/bugs/" class="nav-card">
     <span class="nav-card-label">Extras</span>

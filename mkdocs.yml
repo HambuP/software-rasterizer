@@ -34,6 +34,7 @@ nav:
       - "08 · Camera":              pipeline/08_camera.md
       - "09 · Phong & Toon":        pipeline/09_lighting.md
       - "10 · Shadow Mapping":      pipeline/10_shadows.md
+      - "11 · Near-Plane Clipping": pipeline/11_clipping.md
   - Extras:
       - "Bugs — Hall of Fame":      extras/bugs.md
       - "Process & Research":       extras/process.md

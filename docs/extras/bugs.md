@@ -340,7 +340,49 @@
   </div>
 </div>
 
+<div class="bug-card">
+  <div class="bug-header">
+    <span class="bug-tag">17</span>
+    <span class="bug-title">Near-plane clipping destroys everything — Vec4 × scalar ignored w</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-row">
+      <span class="bug-label">What happened</span>
+      <span>The three clipping cases were worked out and the logic looked right, but every clipped triangle shrank, stretched, and left artifacts everywhere.</span>
+    </div>
+    <div class="bug-row">
+      <span class="bug-label">Cause</span>
+      <span>The <code>Vec4 * float</code> operator scaled x, y and z — but not w. Clipping builds each new vertex with a lerp, <code>a*(1-t) + b*t</code>, so the new w came out as roughly <code>w_a + w_b</code>. A w that is too big makes x/w and y/w too small after the perspective divide, so every new vertex collapsed toward the center of the screen.</span>
+    </div>
+    <div class="bug-row">
+      <span class="bug-label">Fix</span>
+      <span>Scale w too. One hour of debugging, one character of code. Lesson: when the logic is right and nothing works, check your operators and primitives.</span>
+    </div>
+  </div>
+</div>
+
+<div class="bug-card">
+  <div class="bug-header">
+    <span class="bug-tag">18</span>
+    <span class="bug-title">A wall that shouldn't be there shows up in the shadows</span>
+  </div>
+  <div class="bug-body">
+    <div class="bug-row">
+      <span class="bug-label">What happened</span>
+      <span>In the final room scene, a chunk of wall appeared inside the shadows, even though that wall was behind the light.</span>
+    </div>
+    <div class="bug-row">
+      <span class="bug-label">Cause</span>
+      <span>The light's shadow pass had no near-plane clipping. The walls are huge triangles, and one vertex was crossing the light's near plane — the same failure the camera had before clipping, now happening from the light's point of view.</span>
+    </div>
+    <div class="bug-row">
+      <span class="bug-label">Fix</span>
+      <span>Run the same near-plane clipping in the shadow pass. Almost a copy-paste.</span>
+    </div>
+  </div>
+</div>
+
 <div class="page-nav">
-  <a href="../../pipeline/10_shadows/" class="page-nav-btn prev">← Shadow Mapping</a>
+  <a href="../../pipeline/11_clipping/" class="page-nav-btn prev">← Near-Plane Clipping</a>
   <a href="../process/" class="page-nav-btn next">Process & Research →</a>
 </div>

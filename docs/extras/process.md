@@ -68,11 +68,33 @@ A short session. Fixed the z-buffer sign inversion and the renderer clearing iss
 
 ---
 
-## May 14 — Shadow mapping and the final scene
+## May 14 — Shadow mapping and the first final scene
 
 > *"Probably the longest day of the project. Shadow mapping implemented — structurally simpler than expected, basically another z-buffer. The hard part was the spotlight: perspective projection, radial lerp attenuation, distance attenuation. Used std::variant for multiple light types. Set up the scene, recorded the final videos. Project done."*
 
-**Total: ~26 days of active development.** April 18 → May 14.
+---
+
+## May 20 — Coming back for clipping
+
+> *"I reviewed the project and concluded that without near-plane triangle clipping and Z frustum culling, it wasn't going to be right — all the math behind the projection matrix would have been almost for nothing. Z culling turned out to be trivial once my conventions (z+ or z−, left or right handed) were properly defined. Near clipping, on the other hand, is hard, and it still doesn't work."*
+
+## May 24 — The most stupid bug of the project
+
+> *"Fixed near clipping. A whole hour of debugging to find out the error was a Vec4 * operator that didn't scale every component of the vector. If nothing works and the overall logic looks right, look at your operators and primitives."*
+
+## May 25 — Optimizing without a profiler
+
+> *"Tried a profiler for the first time (Very Sleepy), but it didn't help much, so I looked for structural improvements first. The scene ran at 15 FPS. Computing 1/w once per vertex instead of per pixel: +2 FPS. Keeping the triangle and thread lists as class members and just clearing them each frame: +2 FPS. The big one: I was creating 4 vectors for every triangle that were only needed when a vertex crossed the near plane. Moving them inside that condition and turning them into std::arrays: +20 FPS. Almost 3× with three small changes."*
+
+## May 28–29 — Ambient light and the wall in the shadows
+
+> *"Shadows were gray patches — the ambient term ignored the texture. Fixed. Then a piece of wall started showing up in the shadows. I found the cause on my own when the AI couldn't: it was the near plane again, but from the light's camera. Clipping in the shadow pass was basically a copy-paste."*
+
+## June 1 — Light intensity
+
+> *"Added intensity to the lights so the scene looks better. Adding intensity is literally adding a variable."*
+
+**From first pixel to final scene:** April 18 → June 1.
 
 ---
 

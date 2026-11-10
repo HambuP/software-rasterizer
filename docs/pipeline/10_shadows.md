@@ -158,6 +158,12 @@ Both factors multiply the final light intensity: `Iluz = l.color * atenuacion * 
 
 ---
 
+## Clipping in the shadow pass
+
+The shadow pass is a full rasterization from the light's point of view, so it has the same problem the camera has: <span class="accent-red">triangles that cross the light's near plane</span>. In the final room scene, a piece of wall kept showing up inside the shadows even though it was behind the light. The walls are a few very large triangles, and one of their vertices was crossing the light's near plane, which breaks the perspective divide for the whole triangle.
+
+The fix was to run the same near-plane clipping used for the camera inside the shadow pass. <span class="accent-gold">The light is just another camera</span> — everything that can go wrong for the camera can go wrong for it. The full explanation of clipping is in [Near-Plane Clipping](11_clipping.md).
+
 ## Bugs
 
 <div class="bug-card">
@@ -270,5 +276,5 @@ Both factors multiply the final light intensity: `Iluz = l.color * atenuacion * 
 
 <div class="page-nav">
   <a href="../09_lighting/" class="page-nav-btn prev">← Phong & Toon Shading</a>
-  <a href="../../extras/bugs/" class="page-nav-btn next">Bugs — Hall of Fame →</a>
+  <a href="../11_clipping/" class="page-nav-btn next">Near-Plane Clipping →</a>
 </div>

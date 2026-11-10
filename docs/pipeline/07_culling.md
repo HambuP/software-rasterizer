@@ -41,7 +41,14 @@ if (v1.y >  v1.w && v2.y >  v2.w && v3.y >  v3.w) continue; // top
 
 Why ±w? Because after the perspective divide, NDC x = x_clip / w. For a point to be inside the screen, NDC x must be in [−1, 1], which means x_clip / w ∈ [−1, 1], which means <span class="accent-sage">−w ≤ x_clip ≤ w</span>. <span class="accent-sage">Checking this in clip space avoids the division entirely.</span>
 
-> **Note:** the same test applies to Z — clipping triangles that are entirely behind the near plane or beyond the far plane. This wasn't implemented here since none of the test scenes involved objects at extreme depth ranges, but it follows the exact same logic as the X/Y checks above.
+The same test also runs on Z, against the near and far planes:
+
+```cpp
+if (v1.z < -v1.w && v2.z < -v2.w && v3.z < -v3.w) continue; // near
+if (v1.z >  v1.w && v2.z >  v2.w && v3.z >  v3.w) continue; // far
+```
+
+> **Note:** culling only throws away triangles that are *completely* outside. A triangle that is partly behind the camera can't be discarded, and it can't be drawn as-is either — that case needs clipping, covered in [Near-Plane Clipping](11_clipping.md).
 
 ## Multithreading
 

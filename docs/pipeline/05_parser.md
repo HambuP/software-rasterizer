@@ -118,6 +118,8 @@ Three quirks of the BMP format:
 - Rows are stored <span class="accent-gold">**bottom to top**</span> — the first row in the file is the last row of the image
 - Each row is padded to a **multiple of 4 bytes**
 
+The parser handles both **24-bit** (BGR, 3 bytes per pixel, padded rows) and **32-bit** (BGRA, 4 bytes per pixel) files. It reads the bits-per-pixel field from the header to pick the stride, and 32-bit rows never need padding, since 4 bytes per pixel is already a multiple of 4.
+
 ```cpp
 int padding = (4 - ((width * 3) % 4)) % 4;
 

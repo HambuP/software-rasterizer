@@ -116,6 +116,19 @@ for (auto& luz : lights) {
 }
 ```
 
+### Ambient light uses the texture
+
+At first the ambient term was just `ka * Ia` — a flat gray. Any surface in shadow, where ambient is the only light left, turned into a gray patch with no texture. Now the texture color is sampled first and multiplied into the ambient term, so shadowed surfaces are darker versions of themselves:
+
+```cpp
+inten_amb = Vec3{tex.x*ka.x, tex.y*ka.y, tex.z*ka.z} * Ia;  // with texture
+// without a texture it stays ka * Ia
+```
+
+### Per-light intensity
+
+Each light also has an `intensity` multiplier, applied together with its color and attenuation: `Iluz = l.color * l.intensity * atenuacion * factor`. It's a single variable, but it's what made it possible to balance the two lights in the final scene.
+
 ## Toon shading
 
 Toon shading is a Phong variant where continuous values are <span class="accent-red">quantized into discrete bands</span> — instead of a smooth gradient, flat regions of light and shadow. The result is a cel-shaded, cartoon look.
